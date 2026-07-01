@@ -4,6 +4,12 @@
 
 ---
 
+## Circuit Diagram
+
+![Robotic Hand Vitals Monitor — Circuit Diagram](circuit_diagram.jpg)
+
+---
+
 ## Demo Flow
 
 ```
