@@ -8,11 +8,12 @@
 
 ## Circuit Diagram
 
-![Robotic Hand Vitals Monitor — Circuit Diagram](circuit_diagram.jpg)
+![Circuit Diagram](robotic_hand_render.png)
 
 ---
 
 ## Demo Flow
+
 
 ```
 IDLE → detect hand (IR sensor) → FOLD fingers (servo)
