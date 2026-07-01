@@ -1,0 +1,44 @@
+# =============================================================================
+# .gitignore — Robotic Hand Vitals Monitor (Arduino / ESP32 project)
+# =============================================================================
+
+# ---- Credentials (NEVER commit these) ----------------------------------------
+# config.h contains Wi-Fi and Adafruit IO credentials.
+# We track a config.example.h template instead.
+# Uncomment the line below ONLY after you have created config.example.h
+# config.h
+
+# ---- Arduino IDE build artefacts ---------------------------------------------
+build/
+*.elf
+*.bin
+*.map
+*.d
+*.o
+
+# ---- PlatformIO (if you ever migrate) ----------------------------------------
+.pio/
+.pioenvs/
+.piolibdeps/
+.pioenv
+
+# ---- VS Code -----------------------------------------------------------------
+.vscode/
+*.code-workspace
+
+# ---- macOS -------------------------------------------------------------------
+.DS_Store
+__MACOSX/
+
+# ---- Windows -----------------------------------------------------------------
+Thumbs.db
+desktop.ini
+
+# ---- Logs & temp files -------------------------------------------------------
+*.log
+*.tmp
+*.bak
+
+# ---- Office documents (keep the Project Description but ignore temp files) ---
+~$*.docx
+~$*.xlsx
