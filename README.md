@@ -2,7 +2,7 @@
 
 > ESP32-based 3D-printed robotic forearm that detects hand placement, measures vital signs (heart rate, SpO₂, temperature), publishes results to Adafruit IO, and auto-releases — built for academic evaluation.
 
-![Robotic Hand](robotic_hand_render.png)
+
 
 ---
 
