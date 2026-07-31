@@ -29,7 +29,8 @@
 #include "vitals.h"
 #include "config.h"
 #include <Wire.h>
-#include <SparkFun_MAX3010x_Sensor_Library.h>  // SparkFun MAX3010x v1.1.2
+#include <MAX30105.h>
+#include <spo2_algorithm.h>
 
 // The SparkFun library wraps the MAX30102 register map.
 static MAX30105 _sensor;
@@ -78,31 +79,12 @@ bool initVitals() {
 // ---------------------------------------------------------------------------
 // readSkinTemperature()
 // ---------------------------------------------------------------------------
-// ⚠️  STUB — Currently returns 0.0f.
-//
-// When you are ready to add a real skin temperature sensor:
-//
-// Option A — DS18B20 (OneWire, digital, ±0.5°C):
-//   #include <OneWire.h>
-//   #include <DallasTemperature.h>
-//   OneWire oneWire(TEMP_PLACEHOLDER_PIN);
-//   DallasTemperature sensors(&oneWire);
-//   float readSkinTemperature() {
-//     sensors.requestTemperatures();
-//     return sensors.getTempCByIndex(0);
-//   }
-//
-// Option B — MLX90614 (I2C, non-contact, ±0.5°C):
-//   #include <Adafruit_MLX90614.h>
-//   Adafruit_MLX90614 mlx;
-//   float readSkinTemperature() {
-//     return mlx.readObjectTempC();  // skin surface
-//   }
+// Reads the internal die temperature directly from the MAX30102 sensor (°C).
 // ---------------------------------------------------------------------------
 float readSkinTemperature() {
-  // TODO: Replace with real sensor read (see comments above)
-  DBGLN("[VITALS] Temperature: STUB — returning 0.0 (no sensor wired yet)");
-  return 0.0f;
+  float tempC = _sensor.readTemperature();
+  DBGF("[VITALS] MAX30102 Onboard Temperature: %.1f °C\n", tempC);
+  return tempC;
 }
 
 // ---------------------------------------------------------------------------
@@ -162,23 +144,21 @@ VitalsReading collectAndAverageVitals() {
       FIFO_SAMPLES_PER_READ,
       (uint32_t*)redBuffer,  // Red buffer (used for SpO2 ratio)
       &spo2, &spo2Valid,
-      &hr,   &hrValid,
-      &hrConfidence
+      &hr,   &hrValid
     );
 
     // Read temperature (stub for now — see readSkinTemperature() above)
     float temp = readSkinTemperature();
 
-    DBGF("[VITALS] HR=%ld (valid=%d, confidence=%d), SpO2=%ld (valid=%d), Temp=%.1f\n",
-         hr, hrValid, hrConfidence, spo2, spo2Valid, temp);
+    DBGF("[VITALS] HR=%ld (valid=%d), SpO2=%ld (valid=%d), Temp=%.1f\n",
+         hr, hrValid, spo2, spo2Valid, temp);
 
     // Accept this reading if:
     //   1. Both HR and SpO2 are flagged valid by the library
-    //   2. HR confidence meets our minimum threshold
-    //   3. Values are in physiologically plausible ranges
+    //   2. Values are in physiologically plausible ranges
     bool plausible = (hr > 40 && hr < 200) && (spo2 > 70 && spo2 <= 100);
 
-    if (hrValid && spo2Valid && hrConfidence >= MIN_CONFIDENCE && plausible) {
+    if (hrValid && spo2Valid && plausible) {
       totalHR   += (float)hr;
       totalSpO2 += (float)spo2;
       totalTemp += temp;

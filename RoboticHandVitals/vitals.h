@@ -10,7 +10,7 @@
 struct VitalsReading {
   float heartRate;    // Beats per minute (BPM)
   float spO2;         // Oxygen saturation (%)
-  float temperature;  // Skin temp °C — stub until real sensor wired in
+  float temperature;  // Temperature °C (read from MAX30102 onboard die sensor)
   bool  valid;        // false if sensor returned garbage/timeout
 };
 
@@ -21,16 +21,7 @@ bool initVitals();
 // then return the averaged result. Blocking call (~6 seconds with defaults).
 VitalsReading collectAndAverageVitals();
 
-// =============================================================================
-// TODO — External Skin Temperature Sensor
-// =============================================================================
-// Currently returns 0.0f as a placeholder.
-// Replace this implementation in vitals.cpp when you have wired in:
-//   Option A: DS18B20 (one-wire, pin TEMP_PLACEHOLDER_PIN)
-//             → Install "DallasTemperature" + "OneWire" libraries
-//   Option B: MLX90614 (I2C, shared bus with MAX30102)
-//             → Install "Adafruit MLX90614 Library"
-// =============================================================================
+// Reads temperature directly from MAX30102 onboard die temperature sensor (°C)
 float readSkinTemperature();
 
 #endif // VITALS_H

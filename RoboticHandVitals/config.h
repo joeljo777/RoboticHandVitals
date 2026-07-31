@@ -22,6 +22,7 @@
 #define AIO_USERNAME  "YOUR_ADAFRUIT_IO_USERNAME"
 #define AIO_KEY       "YOUR_ADAFRUIT_IO_KEY"
 
+
 // ---------------------------------------------------------------------------
 // Adafruit IO Feed Names
 // These must match EXACTLY what you create on io.adafruit.com.
@@ -46,7 +47,7 @@
 //   LOW  = object detected (most common "active-LOW" modules)
 //   HIGH = object detected (some modules invert the output)
 // Flip this if your sensor behaves backwards.
-#define IR_DETECT_LEVEL  LOW
+#define IR_DETECT_LEVEL  HIGH
 
 // Servo signal pin (PWM — connect ONLY the signal wire here)
 // ⚠️  POWER WARNING: Servo VCC must come from an EXTERNAL 5V supply,

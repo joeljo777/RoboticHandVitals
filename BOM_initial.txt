@@ -1,0 +1,6 @@
+ESP32 Dev Board (e.g., ESP32WROOM-32 DevKit V1) x1  (₹ 390)
+MAX30102 Sensor Module x1 (320)
+Servo Motor — MG90S / SG90 (metal-gear preferred: MG90S/MG95) x4  (125 x 5  = ₹ 625)
+
+total as of now (excluding 3D printing and PCB fabrication cost)
+= ₹ 1335
