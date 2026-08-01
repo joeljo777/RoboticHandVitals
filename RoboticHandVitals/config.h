@@ -12,8 +12,8 @@
 // Wi-Fi Credentials
 // NOTE: ESP32 only supports 2.4 GHz Wi-Fi — 5 GHz networks will not connect.
 // ---------------------------------------------------------------------------
-#define WIFI_SSID     "YOUR_WIFI_SSID"
-#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+#define WIFI_SSID     "AdornInn_2ndFloor"
+#define WIFI_PASSWORD "AdorN@iNN123-3"
 
 // ---------------------------------------------------------------------------
 // Adafruit IO Credentials
