@@ -6,12 +6,6 @@
 
 ---
 
-## Circuit Diagram
-
-![Circuit Diagram](robotic_hand_render.png)
-
----
-
 ## Demo Flow
 
 
