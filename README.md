@@ -55,6 +55,7 @@ IDLE → detect hand (IR sensor) → FOLD fingers (servo)
 
 ```
 ROBOTICARM/
+├── 3D Files Robo Hand/         ← 3D printable STL models (Arm, Fingers, Hand)
 ├── RoboticHandVitals/
 │   ├── RoboticHandVitals.ino   ← Main sketch (state machine)
 │   ├── config.h                ← ⚠️ Credentials & pin/tuning config (edit this first)
