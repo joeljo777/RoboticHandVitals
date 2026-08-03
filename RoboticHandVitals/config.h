@@ -9,7 +9,12 @@
 #define CONFIG_H
 
 // ---------------------------------------------------------------------------
-// Wi-Fi Credentials
+// Wi-Fi Feature Toggle (0 = Disabled / Standalone Offline, 1 = Enabled)
+// ---------------------------------------------------------------------------
+#define ENABLE_WIFI   0
+
+// ---------------------------------------------------------------------------
+// Wi-Fi Credentials (Used only if ENABLE_WIFI is set to 1)
 // NOTE: ESP32 only supports 2.4 GHz Wi-Fi — 5 GHz networks will not connect.
 // ---------------------------------------------------------------------------
 #define WIFI_SSID     "AdornInn_2ndFloor"
@@ -47,7 +52,7 @@
 //   LOW  = object detected (most common "active-LOW" modules)
 //   HIGH = object detected (some modules invert the output)
 // Flip this if your sensor behaves backwards.
-#define IR_DETECT_LEVEL  HIGH
+#define IR_DETECT_LEVEL  LOW
 
 // Servo signal pin (PWM — connect ONLY the signal wire here)
 // ⚠️  POWER WARNING: Servo VCC must come from an EXTERNAL 5V supply,
@@ -69,13 +74,17 @@
 #define SERVO_OPEN_DEG    0
 
 // Servo angle when fingers are fully CLOSED (hand gripping / FOLD state)
-// Start conservative (e.g. 60°) and increase until grip is comfortable.
-#define SERVO_CLOSE_DEG   70
+// Full 180-degree turn for gripping
+#define SERVO_CLOSE_DEG   180
 
 // Delay between each 1° step during soft-start ramp (milliseconds).
 // Higher = slower / gentler motion.  Lower = faster / more abrupt.
-// 15 ms → ~1 second for a 70° sweep (comfortable default).
+// 15 ms → ~2.7 seconds for a full 180° sweep.
 #define SERVO_STEP_DELAY_MS  15
+
+// Raw MAX30102 IR reading threshold to detect finger placement on the pulse oximeter
+// When a finger is pressed on the sensor glass, raw IR reading typically exceeds 50,000.
+#define OXIMETER_FINGER_THRESHOLD  50000L
 
 // ---------------------------------------------------------------------------
 // IR Debounce
@@ -104,6 +113,9 @@
 
 // How long to keep fingers closed AFTER publishing vitals (ms)
 #define HOLD_DURATION_MS      5000   // 5 seconds
+
+// How long to wait AFTER unfolding fingers before allowing a new hand detection (ms)
+#define COOLDOWN_DURATION_MS  5000   // 5 seconds cooldown delay
 
 // Absolute maximum time any single state can run before the fail-safe
 // forces an UNFOLD. Prevents the hand staying closed if anything hangs.

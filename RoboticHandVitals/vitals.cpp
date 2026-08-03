@@ -34,6 +34,7 @@
 
 // The SparkFun library wraps the MAX30102 register map.
 static MAX30105 _sensor;
+static bool     _vitalsInitialized = false;
 
 // How many samples the library collects internally per measurement call.
 // More samples = more averaging inside the library = smoother result.
@@ -55,6 +56,7 @@ bool initVitals() {
   if (!_sensor.begin(Wire, I2C_SPEED_FAST)) {
     // I2C_SPEED_FAST = 400 kHz — MAX30102 supports up to 400 kHz.
     DBGLN("[VITALS] ERROR: MAX30102 not found. Check wiring and I2C address.");
+    _vitalsInitialized = false;
     return false;
   }
 
@@ -72,6 +74,7 @@ bool initVitals() {
   // After setup, allow the LEDs and photodiode to settle.
   delay(SENSOR_SETTLE_MS);
 
+  _vitalsInitialized = true;
   DBGLN("[VITALS] MAX30102 initialised OK");
   return true;
 }
@@ -195,3 +198,32 @@ VitalsReading collectAndAverageVitals() {
 
   return result;
 }
+
+// Module-private debounce state for MAX30102 IR photodiode detection
+static unsigned long _oximeterDetectStartMs = 0;
+static bool          _oximeterDetecting     = false;
+
+bool isFingerDetectedOnOximeter() {
+  if (!_vitalsInitialized) {
+    return false;
+  }
+
+  _sensor.check();
+  uint32_t irValue = _sensor.getIR();
+
+  if (irValue > OXIMETER_FINGER_THRESHOLD) {
+    if (!_oximeterDetecting) {
+      _oximeterDetecting     = true;
+      _oximeterDetectStartMs = millis();
+    } else if ((millis() - _oximeterDetectStartMs) >= IR_DEBOUNCE_MS) {
+      DBGF("[VITALS] Hand/Finger detected & confirmed on MAX30102 IR photodiode! (IR: %u)\n", irValue);
+      return true;
+    }
+  } else {
+    _oximeterDetecting     = false;
+    _oximeterDetectStartMs = 0;
+  }
+
+  return false;
+}
+

@@ -1,7 +1,7 @@
 // =============================================================================
 // RoboticHandVitals.ino — Main Sketch & Finite State Machine (FSM)
 // =============================================================================
-// Flow: IDLE -> FOLD -> MEASURE -> PUBLISH -> HOLD -> UNFOLD -> IDLE
+// Flow: IDLE -> FOLD -> MEASURE -> HOLD -> UNFOLD -> COOLDOWN -> IDLE
 // =============================================================================
 
 #include "config.h"
@@ -16,7 +16,8 @@ enum State {
   STATE_MEASURE,
   STATE_PUBLISH,
   STATE_HOLD,
-  STATE_UNFOLD
+  STATE_UNFOLD,
+  STATE_COOLDOWN
 };
 
 static State currentState = STATE_IDLE;
@@ -44,13 +45,19 @@ void setup() {
     DBGLN("[SETUP] WARNING: MAX30102 Vitals sensor init failed!");
   }
 
+#if ENABLE_WIFI
   connectWiFi();
+#else
+  DBGLN("[SETUP] Operating in Standalone Offline Mode (Wi-Fi disabled)");
+#endif
 
   changeState(STATE_IDLE, "IDLE");
 }
 
 void loop() {
+#if ENABLE_WIFI
   processAdafruitIO();
+#endif
 
   // Fail-safe timeout check
   if (currentState != STATE_IDLE && (millis() - stateTimer) > FAILSAFE_TIMEOUT_MS) {
@@ -62,8 +69,11 @@ void loop() {
 
   switch (currentState) {
     case STATE_IDLE:
-      if (isHandDetected()) {
-        DBGLN("[FSM] Hand detected on palm IR sensor!");
+      if (isFingerDetectedOnOximeter()) {
+        DBGLN("[FSM] Hand/Finger detected on built-in MAX30102 IR photodiode! Moving servo to fold fingers...");
+        changeState(STATE_FOLD, "FOLD");
+      } else if (isHandDetected()) {
+        DBGLN("[FSM] Hand detected on secondary palm IR sensor!");
         changeState(STATE_FOLD, "FOLD");
       }
       break;
@@ -73,17 +83,18 @@ void loop() {
       changeState(STATE_MEASURE, "MEASURE");
       break;
 
-    case STATE_MEASURE: {
-      VitalsReading reading = collectAndAverageVitals();
-      if (reading.valid) {
-        publishVitals(reading);
-        changeState(STATE_HOLD, "HOLD");
-      } else {
-        DBGLN("[FSM] Vitals reading invalid or low confidence.");
-        changeState(STATE_UNFOLD, "UNFOLD");
+    case STATE_MEASURE:
+      {
+        VitalsReading reading = collectAndAverageVitals();
+        if (reading.valid) {
+          publishVitals(reading);
+          changeState(STATE_HOLD, "HOLD");
+        } else {
+          DBGLN("[FSM] Vitals reading invalid or low confidence.");
+          changeState(STATE_UNFOLD, "UNFOLD");
+        }
+        break;
       }
-      break;
-    }
 
     case STATE_HOLD:
       if (millis() - stateTimer >= HOLD_DURATION_MS) {
@@ -93,7 +104,14 @@ void loop() {
 
     case STATE_UNFOLD:
       openFingers();
-      changeState(STATE_IDLE, "IDLE");
+      changeState(STATE_COOLDOWN, "COOLDOWN");
+      break;
+
+    case STATE_COOLDOWN:
+      if (millis() - stateTimer >= COOLDOWN_DURATION_MS) {
+        DBGLN("[FSM] Cooldown delay completed. Ready for next hand placement.");
+        changeState(STATE_IDLE, "IDLE");
+      }
       break;
 
     default:

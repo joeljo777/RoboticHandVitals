@@ -3,6 +3,8 @@
 // =============================================================================
 #include "adafruit_io_helper.h"
 #include "config.h"
+
+#if ENABLE_WIFI
 #include <WiFi.h>
 #include <Adafruit_MQTT.h>
 #include <Adafruit_MQTT_Client.h>
@@ -16,8 +18,10 @@ static Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNA
 static Adafruit_MQTT_Publish feedHR   = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/heart_rate");
 static Adafruit_MQTT_Publish feedSpO2 = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/spo2");
 static Adafruit_MQTT_Publish feedTemp = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/temperature");
+#endif
 
 bool connectWiFi() {
+#if ENABLE_WIFI
   if (WiFi.status() == WL_CONNECTED) return true;
 
   DBGF("[WIFI] Connecting to %s...\n", WIFI_SSID);
@@ -36,9 +40,14 @@ bool connectWiFi() {
     DBGLN("\n[WIFI] Connection failed!");
     return false;
   }
+#else
+  DBGLN("[WIFI] Wi-Fi feature is currently disabled (Offline Mode).");
+  return false;
+#endif
 }
 
 bool initAdafruitIO() {
+#if ENABLE_WIFI
   if (strcmp(AIO_USERNAME, "YOUR_ADAFRUIT_IO_USERNAME") == 0 || strcmp(AIO_KEY, "YOUR_ADAFRUIT_IO_KEY") == 0) {
     DBGLN("[AIO] Notice: Adafruit IO credentials not set in config.h. Skipping cloud publish.");
     return false;
@@ -66,12 +75,17 @@ bool initAdafruitIO() {
     DBGLN("[AIO] Failed to connect to Adafruit IO MQTT.");
     return false;
   }
+#else
+  return false;
+#endif
 }
 
 void processAdafruitIO() {
+#if ENABLE_WIFI
   if (mqtt.connected()) {
     mqtt.ping();
   }
+#endif
 }
 
 bool publishVitals(const VitalsReading& reading) {
@@ -80,6 +94,7 @@ bool publishVitals(const VitalsReading& reading) {
     return false;
   }
 
+#if ENABLE_WIFI
   if (!initAdafruitIO()) {
     DBGLN("[AIO] Skipping publish: Network connection unavailable");
     return false;
@@ -100,4 +115,9 @@ bool publishVitals(const VitalsReading& reading) {
     DBGLN("[AIO] Error: One or more feeds failed to publish.");
   }
   return ok;
+#else
+  DBGF("[VITALS REPORT (OFFLINE)] HR: %.1f BPM | SpO2: %.1f%% | Temp: %.1f °C\n",
+       reading.heartRate, reading.spO2, reading.temperature);
+  return true;
+#endif
 }

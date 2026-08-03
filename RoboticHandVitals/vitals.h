@@ -21,7 +21,7 @@ bool initVitals();
 // then return the averaged result. Blocking call (~6 seconds with defaults).
 VitalsReading collectAndAverageVitals();
 
-// Reads temperature directly from MAX30102 onboard die temperature sensor (°C)
-float readSkinTemperature();
+// Checks if a finger is currently pressed on the MAX30102 sensor window
+bool isFingerDetectedOnOximeter();
 
 #endif // VITALS_H

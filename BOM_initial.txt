@@ -4,3 +4,8 @@ Servo Motor — MG90S / SG90 (metal-gear preferred: MG90S/MG95) x4  (125 x 5  = 
 
 total as of now (excluding 3D printing and PCB fabrication cost)
 = ₹ 1335
+
+
+printing hours --1day 5hr 35min(iot lab)
+printing hours -- 14hrs (for IDEA lab)(2 printer)
+cost -- 800(IDEA lab)
