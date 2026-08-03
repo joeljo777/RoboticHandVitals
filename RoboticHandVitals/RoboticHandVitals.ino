@@ -5,7 +5,6 @@
 // =============================================================================
 
 #include "config.h"
-#include "ir_sensor.h"
 #include "servo_control.h"
 #include "vitals.h"
 #include "adafruit_io_helper.h"
@@ -38,7 +37,6 @@ void setup() {
   DBGLN("=========================================");
 #endif
 
-  initIR();
   initServo();
 
   if (!initVitals()) {
@@ -70,10 +68,7 @@ void loop() {
   switch (currentState) {
     case STATE_IDLE:
       if (isFingerDetectedOnOximeter()) {
-        DBGLN("[FSM] Hand/Finger detected on built-in MAX30102 IR photodiode! Moving servo to fold fingers...");
-        changeState(STATE_FOLD, "FOLD");
-      } else if (isHandDetected()) {
-        DBGLN("[FSM] Hand detected on secondary palm IR sensor!");
+        DBGLN("[FSM] Hand/Finger detected on MAX30102 IR photodiode! Moving servo to fold fingers...");
         changeState(STATE_FOLD, "FOLD");
       }
       break;

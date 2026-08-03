@@ -38,32 +38,20 @@
 #define FEED_TEMPERATURE (String(AIO_USERNAME) + "/feeds/temperature")
 
 // ---------------------------------------------------------------------------
-// Pin Definitions
+// Pin Definitions & Hardware Connections
 // ---------------------------------------------------------------------------
+// All vitals (Heart Rate, SpO2, Temperature) and hand placement detection
+// are measured using the integrated MAX30102 pulse oximeter module via I2C.
+// No external IR module or DS18B20 temperature probe is used.
 
-// MAX30102 — I2C (Wire library uses these by default on ESP32 DevKit V1)
+// MAX30102 — I2C Bus (Default ESP32 DevKit V1 pins)
 #define I2C_SDA_PIN   21
 #define I2C_SCL_PIN   22
 
-// IR Proximity Sensor (digital input, hand-detection on palm)
-#define IR_PIN        4
-
-// IR detect logic level:
-//   LOW  = object detected (most common "active-LOW" modules)
-//   HIGH = object detected (some modules invert the output)
-// Flip this if your sensor behaves backwards.
-#define IR_DETECT_LEVEL  LOW
-
-// Servo signal pin (PWM — connect ONLY the signal wire here)
+// Servo Signal Pin (PWM output — connect ONLY signal wire here)
 // ⚠️  POWER WARNING: Servo VCC must come from an EXTERNAL 5V supply,
-//     NOT from the ESP32's 3.3V or onboard 5V pins. Only the signal
-//     wire and a shared GND tie to the ESP32.
+//     NOT from the ESP32's 3.3V or onboard 5V pins. Tie external GND to ESP32 GND.
 #define SERVO_PIN     13
-
-// Placeholder pin for future external skin temperature sensor
-// (DS18B20 one-wire OR MLX90614 I2C — depends on what you add later)
-// Currently unused — see vitals.cpp > readSkinTemperature()
-#define TEMP_PLACEHOLDER_PIN  5
 
 // ---------------------------------------------------------------------------
 // Servo Tuning Constants

@@ -20,13 +20,11 @@ IDLE → detect hand (IR sensor) → FOLD fingers (servo)
 
 ## Hardware
 
-| Component | Part | Connection |
-|---|---|---|
-| Microcontroller | ESP32 DevKit V1 (38-pin) | — |
-| Pulse Oximeter | MAX30102 module | I2C: SDA→GPIO21, SCL→GPIO22 |
-| Hand Detection | IR proximity sensor | Digital OUT → GPIO4 |
-| Finger Actuator | SG90 / MG90S servo | Signal → GPIO13 |
-| Skin Temperature | DS18B20 waterproof | OneWire → GPIO5 (+ 4.7kΩ) |
+| Component | Part | Connection | Function |
+|---|---|---|---|
+| Microcontroller | ESP32 DevKit V1 (38-pin) | — | Main Controller |
+| Multi-Sensor Module | MAX30102 module | I2C: SDA→GPIO21, SCL→GPIO22 | Heart rate, SpO₂, Die Temperature & IR Hand Placement Detection |
+| Finger Actuator | SG90 / MG90S servo | Signal → GPIO13 | Tendon-driven finger closing / opening |
 
 > ⚠️ **Servo power**: Use an external 5V supply (USB power bank recommended). Do NOT power the servo from the ESP32's onboard regulator. Connect GND from the external supply to ESP32 GND.
 
@@ -46,8 +44,6 @@ IDLE → detect hand (IR sensor) → FOLD fingers (servo)
 | Adafruit IO Arduino | 4.2.9 |
 | Adafruit MQTT Library | 2.5.6 |
 | ArduinoHttpClient | 0.6.1 |
-| DallasTemperature | 3.9.0 |
-| OneWire | 2.3.7 |
 
 ---
 
@@ -59,9 +55,8 @@ ROBOTICARM/
 ├── RoboticHandVitals/
 │   ├── RoboticHandVitals.ino   ← Main sketch (state machine)
 │   ├── config.h                ← ⚠️ Credentials & pin/tuning config (edit this first)
-│   ├── vitals.h / .cpp         ← MAX30102 + DS18B20 read & average
+│   ├── vitals.h / .cpp         ← MAX30102 read, hand detection & average
 │   ├── servo_control.h / .cpp  ← Soft-start servo ramp
-│   ├── ir_sensor.h / .cpp      ← Debounced IR hand detection
 │   └── adafruit_io_helper.h/.cpp ← WiFi + Adafruit IO publish
 ├── .gitignore
 └── README.md
@@ -104,12 +99,12 @@ Then create a dashboard with 3 Gauge blocks, one per feed.
 ## Pin Map Summary
 
 ```
-ESP32 GPIO4   ← IR sensor OUT
-ESP32 GPIO5   ← DS18B20 DATA (+ 4.7kΩ to 3.3V)
-ESP32 GPIO13  → Servo SIG
-ESP32 GPIO21  ↔ MAX30102 SDA
-ESP32 GPIO22  ↔ MAX30102 SCL
+ESP32 GPIO13  → Servo SIG (PWM)
+ESP32 GPIO21  ↔ MAX30102 SDA (I2C Data)
+ESP32 GPIO22  ↔ MAX30102 SCL (I2C Clock)
 ```
+
+*(Note: All vitals—Heart Rate, SpO₂, Temperature—and Hand Placement Detection are handled directly by the MAX30102 module over I2C on GPIO21 & GPIO22).*
 
 ---
 
