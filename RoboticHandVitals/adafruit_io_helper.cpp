@@ -15,7 +15,7 @@
 static WiFiClient client;
 static Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 
-static Adafruit_MQTT_Publish feedHR   = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/heart_rate");
+static Adafruit_MQTT_Publish feedHR   = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/heart-rate");
 static Adafruit_MQTT_Publish feedSpO2 = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/spo2");
 static Adafruit_MQTT_Publish feedTemp = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/temperature");
 #endif

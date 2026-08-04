@@ -26,6 +26,7 @@ void changeState(State newState, const char* stateName) {
   currentState = newState;
   stateTimer = millis();
   DBGF("[FSM] Entering state: %s\n", stateName);
+  Serial.printf("{\"type\":\"fsm\",\"state\":\"%s\"}\n", stateName);
 }
 
 void setup() {

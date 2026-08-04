@@ -85,8 +85,9 @@ bool initVitals() {
 // Reads the internal die temperature directly from the MAX30102 sensor (°C).
 // ---------------------------------------------------------------------------
 float readSkinTemperature() {
-  float tempC = _sensor.readTemperature();
-  DBGF("[VITALS] MAX30102 Onboard Temperature: %.1f °C\n", tempC);
+  float rawTemp = _sensor.readTemperature();
+  float tempC   = rawTemp + TEMP_OFFSET_DEG_C;
+  DBGF("[VITALS] MAX30102 Temp: Raw=%.1f°C | Calibrated(+3.5°C)=%.1f°C\n", rawTemp, tempC);
   return tempC;
 }
 

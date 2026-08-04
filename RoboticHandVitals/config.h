@@ -11,7 +11,7 @@
 // ---------------------------------------------------------------------------
 // Wi-Fi Feature Toggle (0 = Disabled / Standalone Offline, 1 = Enabled)
 // ---------------------------------------------------------------------------
-#define ENABLE_WIFI   0
+#define ENABLE_WIFI   1
 
 // ---------------------------------------------------------------------------
 // Wi-Fi Credentials (Used only if ENABLE_WIFI is set to 1)
@@ -94,6 +94,9 @@
 
 // How long the MAX30102 needs to stabilise after mode change (ms)
 #define SENSOR_SETTLE_MS      1500
+
+// Temperature calibration offset (°C) added to raw MAX30102 die reading for real body/skin temp
+#define TEMP_OFFSET_DEG_C     3.5f
 
 // ---------------------------------------------------------------------------
 // Hold and Fail-safe Timers

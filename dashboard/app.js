@@ -11,7 +11,7 @@
 // CONSTANTS
 // ---------------------------------------------------------------------------
 const AIO_REST_BASE  = 'https://io.adafruit.com/api/v2';
-const FEED_HR        = 'heart_rate';
+const FEED_HR        = 'heart-rate';
 const FEED_SPO2      = 'spo2';
 const FEED_TEMP      = 'temperature';
 const CHART_MAX_PTS  = 30;
@@ -502,9 +502,14 @@ async function fetchFeeds() {
   if (cfg.fsmFeed) defs.push({ key: cfg.fsmFeed, prop: 'fsm' });
 
   let any = false;
+  let authError = false;
+  let notFoundError = false;
+
   await Promise.all(defs.map(async ({ key, prop }) => {
     try {
       const r = await fetch(`${AIO_REST_BASE}/${cfg.username}/feeds/${key}/data/last`, { headers });
+      if (r.status === 401) { authError = true; throw new Error('401 Unauthorized (Invalid AIO Key)'); }
+      if (r.status === 404) { notFoundError = true; throw new Error(`404 Feed '${key}' not found`); }
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       const v = parseFloat(d.value);
@@ -519,8 +524,18 @@ async function fetchFeeds() {
     }
   }));
 
-  if (any) { setConn('connected', `REST (${cfg.pollInterval}s)`); onData(); }
-  else setConn('error', 'Fetch error');
+  if (any) {
+    setConn('connected', `REST (${cfg.pollInterval}s)`);
+    onData();
+  } else if (authError) {
+    setConn('error', 'Auth Error (Invalid AIO Key)');
+    log('❌ <strong>Adafruit IO Auth Failed</strong>: Check that your Active IO Key (aio_...) is correct.', 'error');
+  } else if (notFoundError) {
+    setConn('error', 'Feeds Not Found');
+    log('⚠️ <strong>Feeds missing on Adafruit IO</strong>: Ensure feeds <em>heart_rate</em>, <em>spo2</em>, <em>temperature</em> are created.', 'warning');
+  } else {
+    setConn('error', 'No Data / Fetch Error');
+  }
 }
 
 // ---------------------------------------------------------------------------
