@@ -1,17 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Robotic Hand Vitals Monitor</title>
-  <meta name="description" content="Real-time vitals dashboard for the ESP32-based 3D-printed robotic hand — monitor heart rate, SpO₂, temperature and servo state live from Adafruit IO." />
+  <meta name="description"
+    content="Real-time vitals dashboard for the ESP32-based 3D-printed robotic hand — monitor heart rate, SpO₂, temperature and servo state live from Adafruit IO." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
 
   <!-- ===== SETTINGS MODAL ===== -->
@@ -29,7 +34,8 @@
         <div class="form-group">
           <label for="inp-aio-key">Adafruit IO Key</label>
           <input id="inp-aio-key" type="password" placeholder="aio_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
-          <span class="form-hint">Get yours at <a href="https://io.adafruit.com" target="_blank" rel="noopener">io.adafruit.com</a> → My Key</span>
+          <span class="form-hint">Get yours at <a href="https://io.adafruit.com" target="_blank"
+              rel="noopener">io.adafruit.com</a> → My Key</span>
         </div>
         <div class="form-group">
           <label>Data Source</label>
@@ -78,35 +84,54 @@
         <div class="nav-left">
           <div class="nav-brand">
             <svg class="brand-icon" width="28" height="28" viewBox="0 0 28 28" fill="none">
-              <rect width="28" height="28" rx="8" fill="#D4F53C"/>
-              <path d="M9 21 Q9 11 14 9 Q19 11 19 21" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round" fill="none"/>
-              <line x1="11" y1="21" x2="11" y2="24" stroke="#1a1a1a" stroke-width="1.8" stroke-linecap="round"/>
-              <line x1="14" y1="21" x2="14" y2="25" stroke="#1a1a1a" stroke-width="1.8" stroke-linecap="round"/>
-              <line x1="17" y1="21" x2="17" y2="24" stroke="#1a1a1a" stroke-width="1.8" stroke-linecap="round"/>
+              <rect width="28" height="28" rx="8" fill="#D4F53C" />
+              <path d="M9 21 Q9 11 14 9 Q19 11 19 21" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"
+                fill="none" />
+              <line x1="11" y1="21" x2="11" y2="24" stroke="#1a1a1a" stroke-width="1.8" stroke-linecap="round" />
+              <line x1="14" y1="21" x2="14" y2="25" stroke="#1a1a1a" stroke-width="1.8" stroke-linecap="round" />
+              <line x1="17" y1="21" x2="17" y2="24" stroke="#1a1a1a" stroke-width="1.8" stroke-linecap="round" />
             </svg>
-            <span class="brand-name">RoboHand</span>
+            <span class="brand-name">ROBOTIC_ARM</span>
           </div>
         </div>
 
         <nav class="nav-tabs" role="navigation" aria-label="Main navigation">
           <button class="nav-tab active" id="tab-overview" data-tab="overview">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
             Overview
           </button>
           <button class="nav-tab" id="tab-vitals" data-tab="vitals">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg>
             Vitals
           </button>
           <button class="nav-tab" id="tab-servo" data-tab="servo">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+            </svg>
             Servo
           </button>
           <button class="nav-tab" id="tab-history" data-tab="history">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
             History
           </button>
           <button class="nav-tab" id="tab-log" data-tab="log">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
             Log
           </button>
         </nav>
@@ -117,7 +142,11 @@
             <span id="conn-text">Offline</span>
           </div>
           <button id="btn-open-settings" class="btn-settings" aria-label="Open settings">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
           </button>
         </div>
       </header>
@@ -134,12 +163,13 @@
           <div class="device-id-card">
             <div class="device-avatar" aria-hidden="true">
               <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-                <rect width="44" height="44" rx="14" fill="#D4F53C"/>
-                <path d="M22 8 Q22 8 22 8" stroke="#1a1a1a" stroke-width="2"/>
-                <path d="M14 34 Q14 20 22 17 Q30 20 30 34" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-                <line x1="17" y1="34" x2="17" y2="38" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
-                <line x1="22" y1="34" x2="22" y2="39" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
-                <line x1="27" y1="34" x2="27" y2="38" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
+                <rect width="44" height="44" rx="14" fill="#D4F53C" />
+                <path d="M22 8 Q22 8 22 8" stroke="#1a1a1a" stroke-width="2" />
+                <path d="M14 34 Q14 20 22 17 Q30 20 30 34" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"
+                  fill="none" />
+                <line x1="17" y1="34" x2="17" y2="38" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round" />
+                <line x1="22" y1="34" x2="22" y2="39" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round" />
+                <line x1="27" y1="34" x2="27" y2="38" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round" />
               </svg>
             </div>
             <div class="device-id-info">
@@ -224,7 +254,10 @@
             <div class="vital-card" id="card-hr">
               <div class="vc-header">
                 <div class="vc-icon-wrap hr-color">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                      d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z" />
+                  </svg>
                 </div>
                 <span class="vc-name">Heart Rate</span>
                 <span class="vc-badge" id="hr-badge">—</span>
@@ -250,7 +283,9 @@
             <div class="vital-card" id="card-spo2">
               <div class="vc-header">
                 <div class="vc-icon-wrap spo2-color">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z" />
+                  </svg>
                 </div>
                 <span class="vc-name">SpO₂</span>
                 <span class="vc-badge" id="spo2-badge">—</span>
@@ -259,8 +294,9 @@
                 <!-- Arc gauge -->
                 <div class="mini-arc" aria-hidden="true">
                   <svg viewBox="0 0 80 48" fill="none">
-                    <path d="M8 44 A36 36 0 0 1 72 44" stroke="#e8e5df" stroke-width="6" stroke-linecap="round"/>
-                    <path id="spo2-arc" d="M8 44 A36 36 0 0 1 72 44" stroke="#D4F53C" stroke-width="6" stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="113"/>
+                    <path d="M8 44 A36 36 0 0 1 72 44" stroke="#e8e5df" stroke-width="6" stroke-linecap="round" />
+                    <path id="spo2-arc" d="M8 44 A36 36 0 0 1 72 44" stroke="#D4F53C" stroke-width="6"
+                      stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="113" />
                   </svg>
                 </div>
                 <span class="vc-number" id="spo2-value">—</span>
@@ -279,7 +315,10 @@
             <div class="vital-card" id="card-temp">
               <div class="vc-header">
                 <div class="vc-icon-wrap temp-color">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round">
+                    <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
+                  </svg>
                 </div>
                 <span class="vc-name">Temperature</span>
                 <span class="vc-badge" id="temp-badge">—</span>
@@ -319,10 +358,12 @@
               <div class="hand-visual-wrap" aria-label="Servo position">
                 <div class="photo-hand-container" id="photo-hand-container">
                   <!-- Photorealistic Open State Render -->
-                  <img src="assets/robotic_hand_open.png" alt="Robotic Hand Open" class="hand-render hand-render-open active" id="img-hand-open" />
+                  <img src="assets/robotic_hand_open.png" alt="Robotic Hand Open"
+                    class="hand-render hand-render-open active" id="img-hand-open" />
                   <!-- Photorealistic Closed State Render -->
-                  <img src="assets/robotic_hand_closed.png" alt="Robotic Hand Closed" class="hand-render hand-render-closed" id="img-hand-closed" />
-                  
+                  <img src="assets/robotic_hand_closed.png" alt="Robotic Hand Closed"
+                    class="hand-render hand-render-closed" id="img-hand-closed" />
+
                   <!-- Dynamic Metallic & Carbon Fiber Telemetry Overlays -->
                   <div class="hand-hud-overlay">
                     <!-- Sensor Pulse Glow Ring -->
@@ -350,13 +391,15 @@
                 <span class="servo-label-text">Servo Position</span>
                 <div class="servo-arc-container">
                   <svg class="servo-arc-svg" viewBox="0 0 140 80" fill="none">
-                    <path d="M12 76 A62 62 0 0 1 128 76" stroke="#e8e5df" stroke-width="10" stroke-linecap="round"/>
-                    <path id="servo-arc-fill" d="M12 76 A62 62 0 0 1 128 76" stroke="#D4F53C" stroke-width="10" stroke-linecap="round" stroke-dasharray="196" stroke-dashoffset="196"/>
-                    <circle id="servo-knob" cx="12" cy="76" r="7" fill="#1a1a1a"/>
+                    <path d="M12 76 A62 62 0 0 1 128 76" stroke="#e8e5df" stroke-width="10" stroke-linecap="round" />
+                    <path id="servo-arc-fill" d="M12 76 A62 62 0 0 1 128 76" stroke="#D4F53C" stroke-width="10"
+                      stroke-linecap="round" stroke-dasharray="196" stroke-dashoffset="196" />
+                    <circle id="servo-knob" cx="12" cy="76" r="7" fill="#1a1a1a" />
                     <!-- Tick marks -->
-                    <line x1="12" y1="76" x2="12" y2="68" stroke="#ccc" stroke-width="2" stroke-linecap="round" transform="rotate(0 12 76)"/>
-                    <line x1="70" y1="14" x2="70" y2="22" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
-                    <line x1="128" y1="76" x2="128" y2="68" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="12" y1="76" x2="12" y2="68" stroke="#ccc" stroke-width="2" stroke-linecap="round"
+                      transform="rotate(0 12 76)" />
+                    <line x1="70" y1="14" x2="70" y2="22" stroke="#ccc" stroke-width="2" stroke-linecap="round" />
+                    <line x1="128" y1="76" x2="128" y2="68" stroke="#ccc" stroke-width="2" stroke-linecap="round" />
                   </svg>
                   <div class="servo-center-val">
                     <span id="servo-angle-val">0</span><span class="servo-deg">°</span>
@@ -399,7 +442,9 @@
               </div>
               <div class="log-scroll" id="log-scroll" role="log" aria-live="polite">
                 <div class="log-empty" id="log-empty">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="1.5">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
                   <span>Waiting for data…</span>
                 </div>
               </div>
@@ -436,4 +481,5 @@
 
   <script src="app.js"></script>
 </body>
+
 </html>
