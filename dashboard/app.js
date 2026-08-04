@@ -235,6 +235,27 @@ function setFSMState(state) {
   // Servo target
   animateServo(FSM_SERVO[state] ?? 0);
 
+  // Photorealistic Render Toggle (Closed vs Open)
+  const isClosed = ['FOLD','MEASURE','PUBLISH','HOLD'].includes(state);
+  const imgOpen   = $('img-hand-open');
+  const imgClosed = $('img-hand-closed');
+  if (imgOpen && imgClosed) {
+    imgOpen.classList.toggle('active', !isClosed);
+    imgClosed.classList.toggle('active', isClosed);
+  }
+
+  // Sensor glow & status LEDs
+  const measuring = state === 'MEASURE';
+  const activeAct = ['FOLD','UNFOLD'].includes(state);
+  if (elSensorGlow) {
+    elSensorGlow.classList.toggle('sensor-active', measuring);
+  }
+
+  const ledAct = $('led-actuator');
+  const ledSnr = $('led-sensor');
+  if (ledAct) ledAct.classList.toggle('active', activeAct);
+  if (ledSnr) ledSnr.classList.toggle('active', measuring);
+
   log(`FSM: <strong>${prev}</strong> → <strong>${state}</strong>`, 'state');
 }
 
@@ -268,9 +289,6 @@ function renderServo(angle) {
   elServoArcFill.style.strokeDashoffset = (arcLen * (1 - fraction)).toFixed(2);
   elServoVal.textContent = Math.round(angle);
   if (elQsServo) elQsServo.textContent = Math.round(angle);
-
-  // Update 3D Hand Model finger curl
-  updateHandCanvasCurl(angle);
 
   // Knob: travels along arc from (12,76) at 0° to (128,76) at 180°
   // semicircle: x = 70 - 58*cos(π*f), y = 76 - 62*sin(π*f)
@@ -679,7 +697,6 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
 function init() {
   loadSettings();
   initChart();
-  initHandCanvas();
   renderServo(0);
   setFSMState('IDLE');
   startUptime();
@@ -688,289 +705,3 @@ function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
-
-// ---------------------------------------------------------------------------
-// 3D-PROJECTED VECTOR ROBOTIC HAND CANVAS ENGINE
-// ---------------------------------------------------------------------------
-let canvasHand, ctxHand;
-let targetHandCurl = 0;
-let currentHandCurl = 0;
-let rotX = 0.15, rotY = -0.25;
-let isDraggingHand = false;
-let lastMouseX = 0, lastMouseY = 0;
-
-function initHandCanvas() {
-  canvasHand = document.getElementById('hand-canvas');
-  if (!canvasHand) return;
-  ctxHand = canvasHand.getContext('2d');
-
-  const wrap = document.getElementById('hand-canvas-wrap');
-  if (wrap) {
-    wrap.addEventListener('mousedown', e => {
-      isDraggingHand = true;
-      lastMouseX = e.clientX;
-      lastMouseY = e.clientY;
-    });
-
-    window.addEventListener('mousemove', e => {
-      if (!isDraggingHand) return;
-      const dx = e.clientX - lastMouseX;
-      const dy = e.clientY - lastMouseY;
-      rotY += dx * 0.01;
-      rotX += dy * 0.008;
-      rotX = Math.max(-0.4, Math.min(0.5, rotX));
-      lastMouseX = e.clientX;
-      lastMouseY = e.clientY;
-    });
-
-    window.addEventListener('mouseup', () => { isDraggingHand = false; });
-  }
-
-  // Animation Loop
-  let time = 0;
-  function renderLoop() {
-    requestAnimationFrame(renderLoop);
-    time += 0.03;
-
-    // Smooth curl interpolation
-    currentHandCurl += (targetHandCurl - currentHandCurl) * 0.08;
-
-    // Subtle idle float
-    if (!isDraggingHand) {
-      rotY += (Math.sin(time * 0.4) * 0.08 - rotY) * 0.02;
-    }
-
-    drawHand3D(time);
-  }
-
-  renderLoop();
-}
-
-function updateHandCanvasCurl(angleDegrees) {
-  targetHandCurl = Math.max(0, Math.min(angleDegrees / 180, 1));
-}
-
-function drawHand3D(time) {
-  const w = canvasHand.width;
-  const h = canvasHand.height;
-  ctxHand.clearRect(0, 0, w, h);
-
-  const cx = w / 2;
-  const cy = h / 2 + 15;
-  const focalLength = 350;
-
-  // 3D Point Projection Function
-  function project(x, y, z) {
-    // Rotate Y
-    const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
-    let x1 = x * cosY + z * sinY;
-    let z1 = -x * sinY + z * cosY;
-
-    // Rotate X
-    const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
-    let y2 = y * cosX - z1 * sinX;
-    let z2 = y * sinX + z1 * cosX;
-
-    const scale = focalLength / (focalLength + z2 + 250);
-    return {
-      x: cx + x1 * scale,
-      y: cy - y2 * scale,
-      scale: scale,
-      z: z2
-    };
-  }
-
-  // Helper to draw projected box
-  function drawBox(bx, by, bz, bw, bh, bd, colorFill, colorStroke) {
-    const hw = bw / 2, hh = bh / 2, hd = bd / 2;
-    const vertices = [
-      project(bx - hw, by - hh, bz - hd),
-      project(bx + hw, by - hh, bz - hd),
-      project(bx + hw, by + hh, bz - hd),
-      project(bx - hw, by + hh, bz - hd),
-      project(bx - hw, by - hh, bz + hd),
-      project(bx + hw, by - hh, bz + hd),
-      project(bx + hw, by + hh, bz + hd),
-      project(bx - hw, by + hh, bz + hd)
-    ];
-
-    const faces = [
-      [0, 1, 2, 3], // Front
-      [5, 4, 7, 6], // Back
-      [4, 0, 3, 7], // Left
-      [1, 5, 6, 2], // Right
-      [4, 5, 1, 0], // Bottom
-      [3, 2, 6, 7]  // Top
-    ];
-
-    faces.forEach(face => {
-      ctxHand.beginPath();
-      ctxHand.moveTo(vertices[face[0]].x, vertices[face[0]].y);
-      for (let i = 1; i < face.length; i++) {
-        ctxHand.lineTo(vertices[face[i]].x, vertices[face[i]].y);
-      }
-      ctxHand.closePath();
-      ctxHand.fillStyle = colorFill;
-      ctxHand.fill();
-      if (colorStroke) {
-        ctxHand.strokeStyle = colorStroke;
-        ctxHand.lineWidth = 1;
-        ctxHand.stroke();
-      }
-    });
-  }
-
-  // Helper to draw joint sphere
-  function drawSphere(sx, sy, sz, radius, color) {
-    const p = project(sx, sy, sz);
-    const r = radius * p.scale;
-    ctxHand.beginPath();
-    ctxHand.arc(p.x, p.y, r, 0, Math.PI * 2);
-    ctxHand.fillStyle = color;
-    ctxHand.fill();
-    ctxHand.strokeStyle = 'rgba(0,0,0,0.15)';
-    ctxHand.lineWidth = 1;
-    ctxHand.stroke();
-  }
-
-  // --- 1. WRIST BLOCK ---
-  drawBox(0, -65, 0, 52, 32, 36, '#3a3a3a', '#262626');
-  drawBox(0, -46, 0, 56, 6, 38, '#D4F53C', '#b8d930');
-
-  // --- 2. PALM ---
-  drawBox(0, 0, 0, 68, 72, 28, '#dedad4', '#c2beb8');
-
-  // --- 3. MAX30102 SENSOR MODULE ---
-  const sensorP = project(0, -5, 15);
-  ctxHand.beginPath();
-  ctxHand.arc(sensorP.x, sensorP.y, 14 * sensorP.scale, 0, Math.PI * 2);
-  ctxHand.fillStyle = '#222';
-  ctxHand.fill();
-
-  // Sensor LED Glow
-  const isMeasuring = currentFSM === 'MEASURE';
-  const glowOpacity = isMeasuring ? 0.6 + 0.4 * Math.sin(time * 6) : (currentFSM === 'HOLD' ? 0.4 : 0);
-  if (glowOpacity > 0) {
-    ctxHand.beginPath();
-    ctxHand.arc(sensorP.x, sensorP.y, 22 * sensorP.scale, 0, Math.PI * 2);
-    ctxHand.fillStyle = `rgba(212, 245, 60, ${glowOpacity * 0.45})`;
-    ctxHand.fill();
-  }
-
-  ctxHand.beginPath();
-  ctxHand.arc(sensorP.x, sensorP.y, 6 * sensorP.scale, 0, Math.PI * 2);
-  ctxHand.fillStyle = glowOpacity > 0 ? '#D4F53C' : '#555';
-  ctxHand.fill();
-
-  // --- 4. 5 ARTICULATED FINGERS ---
-  const fingers = [
-    { name: 'thumb',  x: -38, y: -15, length: 32, isThumb: true },
-    { name: 'index',  x: -24, y:  36, length: 42 },
-    { name: 'middle', x: -8,  y:  38, length: 48 },
-    { name: 'ring',   x:  8,  y:  36, length: 44 },
-    { name: 'pinky',  x:  22, y:  30, length: 34 }
-  ];
-
-  fingers.forEach(f => {
-    let curl1 = currentHandCurl * 1.3; // MCP angle
-    let curl2 = currentHandCurl * 1.1; // PIP angle
-    let curl3 = currentHandCurl * 0.8; // DIP angle
-
-    if (f.isThumb) {
-      curl1 = currentHandCurl * 0.7;
-      curl2 = currentHandCurl * 0.9;
-      curl3 = currentHandCurl * 0.5;
-    }
-
-    // Joint 1: MCP Knuckle
-    const p1 = { x: f.x, y: f.y, z: 0 };
-    drawSphere(p1.x, p1.y, p1.z, 7, '#3a3a3a');
-
-    // Joint 2: PIP Joint
-    const proxLen = f.length * 0.45;
-    let p2;
-    if (f.isThumb) {
-      p2 = {
-        x: p1.x - Math.sin(0.6 - curl1) * proxLen,
-        y: p1.y + Math.cos(0.6 - curl1) * proxLen * 0.5,
-        z: p1.z + Math.sin(curl1) * proxLen
-      };
-    } else {
-      p2 = {
-        x: p1.x,
-        y: p1.y + Math.cos(curl1) * proxLen,
-        z: p1.z + Math.sin(curl1) * proxLen
-      };
-    }
-
-    // Segment 1 (Proximal)
-    const p1Proj = project(p1.x, p1.y, p1.z);
-    const p2Proj = project(p2.x, p2.y, p2.z);
-    ctxHand.beginPath();
-    ctxHand.moveTo(p1Proj.x, p1Proj.y);
-    ctxHand.lineTo(p2Proj.x, p2Proj.y);
-    ctxHand.strokeStyle = '#dedad4';
-    ctxHand.lineWidth = 10 * p1Proj.scale;
-    ctxHand.lineCap = 'round';
-    ctxHand.stroke();
-    drawSphere(p2.x, p2.y, p2.z, 6, '#3a3a3a');
-
-    // Joint 3: DIP Joint
-    const midLen = f.length * 0.35;
-    const totalCurl2 = curl1 + curl2;
-    let p3;
-    if (f.isThumb) {
-      p3 = {
-        x: p2.x - Math.sin(0.6 - totalCurl2) * midLen,
-        y: p2.y + Math.cos(0.6 - totalCurl2) * midLen * 0.5,
-        z: p2.z + Math.sin(totalCurl2) * midLen
-      };
-    } else {
-      p3 = {
-        x: p2.x,
-        y: p2.y + Math.cos(totalCurl2) * midLen,
-        z: p2.z + Math.sin(totalCurl2) * midLen
-      };
-    }
-
-    // Segment 2 (Middle)
-    const p3Proj = project(p3.x, p3.y, p3.z);
-    ctxHand.beginPath();
-    ctxHand.moveTo(p2Proj.x, p2Proj.y);
-    ctxHand.lineTo(p3Proj.x, p3Proj.y);
-    ctxHand.strokeStyle = '#d5d1cb';
-    ctxHand.lineWidth = 8.5 * p2Proj.scale;
-    ctxHand.lineCap = 'round';
-    ctxHand.stroke();
-    drawSphere(p3.x, p3.y, p3.z, 5, '#3a3a3a');
-
-    // Fingertip
-    const distLen = f.length * 0.25;
-    const totalCurl3 = totalCurl2 + curl3;
-    let p4;
-    if (f.isThumb) {
-      p4 = {
-        x: p3.x - Math.sin(0.6 - totalCurl3) * distLen,
-        y: p3.y + Math.cos(0.6 - totalCurl3) * distLen * 0.5,
-        z: p3.z + Math.sin(totalCurl3) * distLen
-      };
-    } else {
-      p4 = {
-        x: p3.x,
-        y: p3.y + Math.cos(totalCurl3) * distLen,
-        z: p3.z + Math.sin(totalCurl3) * distLen
-      };
-    }
-
-    // Segment 3 (Distal)
-    const p4Proj = project(p4.x, p4.y, p4.z);
-    ctxHand.beginPath();
-    ctxHand.moveTo(p3Proj.x, p3Proj.y);
-    ctxHand.lineTo(p4Proj.x, p4Proj.y);
-    ctxHand.strokeStyle = '#c8c4be';
-    ctxHand.lineWidth = 7 * p3Proj.scale;
-    ctxHand.lineCap = 'round';
-    ctxHand.stroke();
-    drawSphere(p4.x, p4.y, p4.z, 4, '#bab6b0');
-  });
-}

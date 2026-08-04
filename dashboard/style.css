@@ -553,38 +553,120 @@ body {
 .hc-title { font-size: .9rem; font-weight: 700; color: var(--txt-primary); }
 .hc-sub   { font-size: .72rem; color: var(--txt-muted); }
 
-/* Interactive Hand Canvas Container */
-.hand-canvas-wrap {
+/* Photorealistic Hand Container */
+.hand-visual-wrap {
   width: 100%;
-  height: 240px;
+  display: flex; justify-content: center;
+  padding: 10px 0;
+}
+
+.photo-hand-container {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: grab;
-  user-select: none;
+  width: 230px;
+  height: 240px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent;
+  border-radius: var(--r-md);
+  border: none;
+  overflow: hidden;
 }
-.hand-canvas-wrap:active {
-  cursor: grabbing;
-}
-#hand-canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-.hand-canvas-hint {
+
+.hand-render {
   position: absolute;
-  bottom: 6px;
-  right: 12px;
-  font-size: .62rem;
-  color: var(--txt-muted);
-  background: rgba(255,255,255,.75);
-  backdrop-filter: blur(4px);
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  pointer-events: none;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transform: scale(0.96) translateY(2px);
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  mix-blend-mode: multiply;
 }
+
+.hand-render.active {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+/* Cybernetic HUD Overlay */
+.hand-hud-overlay {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Sensor Glow Pulse */
+.sensor-pulse-glow {
+  position: absolute;
+  top: 52%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212, 245, 60, 0.6) 0%, rgba(212, 245, 60, 0.15) 55%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sensor-pulse-glow.sensor-active {
+  opacity: 1;
+  animation: hud-glow 1.5s infinite ease-in-out;
+}
+
+@keyframes hud-glow {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.4; }
+  50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.85; }
+}
+
+/* Reticle & Indicators */
+.hud-reticle {
+  position: absolute;
+  top: 52%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px; height: 32px;
+}
+
+.reticle-ring {
+  width: 100%; height: 100%;
+  border: 1.5px dashed rgba(0,0,0,0.2);
+  border-radius: 50%;
+  animation: reticle-spin 12s linear infinite;
+}
+
+@keyframes reticle-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.reticle-dot {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent-dark);
+  box-shadow: 0 0 6px var(--accent);
+}
+
+/* LED Status Array */
+.status-led-array {
+  position: absolute;
+  bottom: 10px; right: 12px;
+  display: flex; gap: 6px; align-items: center;
+  background: rgba(0,0,0,0.06);
+  padding: 4px 8px;
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+}
+
+.led-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #bbb;
+  transition: all 0.3s ease;
+}
+
+.led-pwr { background: var(--clr-ok); box-shadow: 0 0 5px var(--clr-ok); }
+.led-act.active { background: var(--clr-temp); box-shadow: 0 0 6px var(--clr-temp); }
+.led-snr.active { background: var(--accent-dark); box-shadow: 0 0 6px var(--accent); }
 
 /* Servo section */
 .servo-section {

@@ -315,10 +315,34 @@
                 <span class="hc-sub" id="hand-status-label">IDLE — fingers open</span>
               </div>
 
-              <!-- Interactive Robotic Hand Canvas -->
-              <div class="hand-canvas-wrap" id="hand-canvas-wrap" aria-label="Interactive Robotic Hand Model">
-                <canvas id="hand-canvas" width="300" height="240"></canvas>
-                <div class="hand-canvas-hint">Drag to rotate 3D view</div>
+              <!-- Photorealistic Metallic & Carbon Fiber Robotic Arm Visual -->
+              <div class="hand-visual-wrap" aria-label="Servo position">
+                <div class="photo-hand-container" id="photo-hand-container">
+                  <!-- Photorealistic Open State Render -->
+                  <img src="assets/robotic_hand_open.png" alt="Robotic Hand Open" class="hand-render hand-render-open active" id="img-hand-open" />
+                  <!-- Photorealistic Closed State Render -->
+                  <img src="assets/robotic_hand_closed.png" alt="Robotic Hand Closed" class="hand-render hand-render-closed" id="img-hand-closed" />
+                  
+                  <!-- Dynamic Metallic & Carbon Fiber Telemetry Overlays -->
+                  <div class="hand-hud-overlay">
+                    <!-- Sensor Pulse Glow Ring -->
+                    <div class="sensor-pulse-glow" id="sensor-glow"></div>
+                    <!-- Cybernetic Telemetry Reticle -->
+                    <div class="hud-reticle">
+                      <div class="reticle-ring"></div>
+                      <div class="reticle-dot"></div>
+                    </div>
+                    <!-- Joint Telemetry Indicators -->
+                    <div class="joint-indicator joint-mcp" title="MCP Joint"></div>
+                    <div class="joint-indicator joint-pip" title="PIP Joint"></div>
+                    <!-- Status LED Array -->
+                    <div class="status-led-array">
+                      <span class="led-dot led-pwr" title="Power OK"></span>
+                      <span class="led-dot led-act" id="led-actuator" title="Actuator State"></span>
+                      <span class="led-dot led-snr" id="led-sensor" title="Sensor Active"></span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- Servo arc -->
