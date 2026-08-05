@@ -4,9 +4,9 @@
 
 # ---- Credentials (NEVER commit these) ----------------------------------------
 # config.h contains Wi-Fi and Adafruit IO credentials.
-# We track a config.example.h template instead.
-# Uncomment the line below ONLY after you have created config.example.h
-# config.h
+# We track config.example.h template instead.
+RoboticHandVitals/config.h
+**/config.h
 
 # ---- Arduino IDE build artefacts ---------------------------------------------
 build/

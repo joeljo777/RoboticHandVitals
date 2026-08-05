@@ -18,4 +18,10 @@ void processAdafruitIO();
 // Publish vital signs reading to Adafruit IO feeds
 bool publishVitals(const VitalsReading& reading);
 
+// Publish live sample reading during calculation stage
+bool publishLiveVitals(float hr, float spo2, float temp);
+
+// Publish current FSM state name (e.g. IDLE, FOLD, MEASURE, HOLD, UNFOLD)
+bool publishState(const char* stateName);
+
 #endif // ADAFRUIT_IO_HELPER_H

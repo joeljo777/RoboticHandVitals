@@ -15,9 +15,10 @@
 static WiFiClient client;
 static Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 
-static Adafruit_MQTT_Publish feedHR   = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/heart-rate");
+static Adafruit_MQTT_Publish feedHR   = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/heart_rate");
 static Adafruit_MQTT_Publish feedSpO2 = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/spo2");
 static Adafruit_MQTT_Publish feedTemp = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/temperature");
+static Adafruit_MQTT_Publish feedFSM  = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/fsm-state");
 #endif
 
 bool connectWiFi() {
@@ -104,9 +105,9 @@ bool publishVitals(const VitalsReading& reading) {
 
   bool ok = true;
   if (!feedHR.publish(reading.heartRate)) ok = false;
-  delay(500);
+  delay(300);
   if (!feedSpO2.publish(reading.spO2)) ok = false;
-  delay(500);
+  delay(300);
   if (!feedTemp.publish(reading.temperature)) ok = false;
 
   if (ok) {
@@ -118,6 +119,36 @@ bool publishVitals(const VitalsReading& reading) {
 #else
   DBGF("[VITALS REPORT (OFFLINE)] HR: %.1f BPM | SpO2: %.1f%% | Temp: %.1f °C\n",
        reading.heartRate, reading.spO2, reading.temperature);
+  return true;
+#endif
+}
+
+bool publishLiveVitals(float hr, float spo2, float temp) {
+  Serial.printf("{\"type\":\"vitals\",\"hr\":%.1f,\"spo2\":%.1f,\"temp\":%.1f}\n", hr, spo2, temp);
+
+#if ENABLE_WIFI
+  if (!initAdafruitIO()) return false;
+  DBGF("[AIO LIVE] HR: %.1f BPM | SpO2: %.1f%% | Temp: %.1f °C\n", hr, spo2, temp);
+  bool ok = true;
+  if (!feedHR.publish(hr)) ok = false;
+  delay(150);
+  if (!feedSpO2.publish(spo2)) ok = false;
+  delay(150);
+  if (!feedTemp.publish(temp)) ok = false;
+  return ok;
+#else
+  DBGF("[LIVE SAMPLE] HR: %.1f BPM | SpO2: %.1f%% | Temp: %.1f °C\n", hr, spo2, temp);
+  return true;
+#endif
+}
+
+bool publishState(const char* stateName) {
+#if ENABLE_WIFI
+  if (!initAdafruitIO()) return false;
+  DBGF("[AIO] Publishing FSM State: %s\n", stateName);
+  return feedFSM.publish(stateName);
+#else
+  DBGF("[FSM STATE (OFFLINE)] State: %s\n", stateName);
   return true;
 #endif
 }

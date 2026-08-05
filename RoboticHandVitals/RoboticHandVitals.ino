@@ -27,6 +27,9 @@ void changeState(State newState, const char* stateName) {
   stateTimer = millis();
   DBGF("[FSM] Entering state: %s\n", stateName);
   Serial.printf("{\"type\":\"fsm\",\"state\":\"%s\"}\n", stateName);
+#if ENABLE_WIFI
+  publishState(stateName);
+#endif
 }
 
 void setup() {
@@ -53,7 +56,33 @@ void setup() {
   changeState(STATE_IDLE, "IDLE");
 }
 
+void handleSerialCommands() {
+  if (Serial.available() > 0) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+    if (cmd.indexOf("\"cmd\":\"fold\"") >= 0 || cmd == "fold") {
+      DBGLN("[SERIAL CMD] Manual Fold triggered from Dashboard");
+      changeState(STATE_FOLD, "FOLD");
+    } else if (cmd.indexOf("\"cmd\":\"unfold\"") >= 0 || cmd == "unfold") {
+      DBGLN("[SERIAL CMD] Manual Unfold triggered from Dashboard");
+      changeState(STATE_UNFOLD, "UNFOLD");
+    } else if (cmd.indexOf("\"cmd\":\"measure\"") >= 0 || cmd == "measure") {
+      DBGLN("[SERIAL CMD] Manual Measure triggered from Dashboard");
+      changeState(STATE_MEASURE, "MEASURE");
+    } else if (cmd.indexOf("\"cmd\":\"servo\"") >= 0) {
+      int idx = cmd.indexOf("\"angle\":");
+      if (idx >= 0) {
+        int angle = cmd.substring(idx + 8).toInt();
+        DBGF("[SERIAL CMD] Manual Servo Angle set: %d°\n", angle);
+        setServoAngle(angle);
+      }
+    }
+  }
+}
+
 void loop() {
+  handleSerialCommands();
+
 #if ENABLE_WIFI
   processAdafruitIO();
 #endif

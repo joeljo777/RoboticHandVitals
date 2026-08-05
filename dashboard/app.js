@@ -31,11 +31,11 @@ const FSM_SERVO = {
 const FSM_STATUS = {
   IDLE:     'IDLE — fingers open',
   FOLD:     'FOLD — closing fingers',
-  MEASURE:  'MEASURE — reading vitals',
+  MEASURE:  'CALCULATING — reading live vitals...',
   PUBLISH:  'PUBLISH — sending to Adafruit IO',
-  HOLD:     'HOLD — fingers closed',
+  HOLD:     'HOLD — vitals recorded',
   UNFOLD:   'UNFOLD — opening fingers',
-  COOLDOWN: 'COOLDOWN — waiting for next cycle',
+  COOLDOWN: 'COOLDOWN — preparing for next hand placement',
 };
 
 // ---------------------------------------------------------------------------
@@ -43,7 +43,7 @@ const FSM_STATUS = {
 // ---------------------------------------------------------------------------
 let cfg = {
   username: '', key: '',
-  source: 'mqtt', pollInterval: 5, fsmFeed: '',
+  source: 'mqtt', pollInterval: 5, fsmFeed: 'fsm-state',
 };
 
 let mqttClient       = null;
@@ -129,17 +129,18 @@ const elInpFsmFeed   = $('inp-fsm-feed');
 const elInpPoll      = $('inp-poll-interval');
 const elPollVal      = $('poll-interval-val');
 const elPollGroup    = $('polling-interval-group');
+const elRadioSerial  = $('radio-serial');
 const elRadioMqtt    = $('radio-mqtt');
 const elRadioRest    = $('radio-rest');
 
 // ---------------------------------------------------------------------------
-// CHART
+// CHARTS
 // ---------------------------------------------------------------------------
 let vitalsChart;
+let vitalsHistoryChart;
 
 function initChart() {
-  const ctx = $('vitals-chart').getContext('2d');
-  vitalsChart = new Chart(ctx, {
+  const chartConfig = {
     type: 'line',
     data: {
       labels: historyTs,
@@ -195,7 +196,7 @@ function initChart() {
       },
       scales: {
         x: {
-          ticks: { color: '#9a9a9a', maxTicksLimit: 7, maxRotation: 0, font: { family: 'JetBrains Mono', size: 9 } },
+          ticks: { color: '#9a9a9a', maxTicksLimit: 10, maxRotation: 0, font: { family: 'JetBrains Mono', size: 9 } },
           grid: { color: 'rgba(0,0,0,.04)' },
           border: { color: 'rgba(0,0,0,.06)' },
         },
@@ -217,7 +218,19 @@ function initChart() {
         y3: { display: false, min: 30, max: 42 },
       },
     },
-  });
+  };
+
+  const ctx1 = $('vitals-chart').getContext('2d');
+  vitalsChart = new Chart(ctx1, chartConfig);
+
+  const ctx2 = $('vitals-chart-full')?.getContext('2d');
+  if (ctx2) {
+    vitalsHistoryChart = new Chart(ctx2, JSON.parse(JSON.stringify(chartConfig)));
+    vitalsHistoryChart.data.labels = historyTs;
+    vitalsHistoryChart.data.datasets[0].data = historyHR;
+    vitalsHistoryChart.data.datasets[1].data = historySPO2;
+    vitalsHistoryChart.data.datasets[2].data = historyTemp;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -232,16 +245,28 @@ function setFSMState(state) {
   elFsmLabel.textContent = state;
   if (elHandStatus) elHandStatus.textContent = FSM_STATUS[state] || state;
 
+  const servoPageFsm = $('servo-page-fsm-text');
+  const servoPageStatus = $('servo-page-status');
+  if (servoPageFsm) servoPageFsm.textContent = `FSM Mode: ${state} (${FSM_SERVO[state] ?? 0}°)`;
+  if (servoPageStatus) servoPageStatus.textContent = FSM_STATUS[state] || state;
+
   // Servo target
   animateServo(FSM_SERVO[state] ?? 0);
 
-  // Photorealistic Render Toggle (Closed vs Open)
+  // Photorealistic Render Toggle (Closed vs Open) - both Overview and Servo Page
   const isClosed = ['FOLD','MEASURE','PUBLISH','HOLD'].includes(state);
   const imgOpen   = $('img-hand-open');
   const imgClosed = $('img-hand-closed');
   if (imgOpen && imgClosed) {
     imgOpen.classList.toggle('active', !isClosed);
     imgClosed.classList.toggle('active', isClosed);
+  }
+
+  const imgOpenServo   = $('img-hand-open-servo');
+  const imgClosedServo = $('img-hand-closed-servo');
+  if (imgOpenServo && imgClosedServo) {
+    imgOpenServo.classList.toggle('active', !isClosed);
+    imgClosedServo.classList.toggle('active', isClosed);
   }
 
   // Sensor glow & status LEDs
@@ -283,20 +308,39 @@ function animateServo(target) {
 }
 
 function renderServo(angle) {
-  // Arc: strokeDasharray=196 for full 180° sweep
+  const rounded = Math.round(angle);
+
+  // Overview Arc
   const arcLen   = 196;
   const fraction = Math.max(0, Math.min(angle / 180, 1));
-  elServoArcFill.style.strokeDashoffset = (arcLen * (1 - fraction)).toFixed(2);
-  elServoVal.textContent = Math.round(angle);
-  if (elQsServo) elQsServo.textContent = Math.round(angle);
+  if (elServoArcFill) elServoArcFill.style.strokeDashoffset = (arcLen * (1 - fraction)).toFixed(2);
+  if (elServoVal) elServoVal.textContent = rounded;
+  if (elQsServo) elQsServo.textContent = rounded;
 
-  // Knob: travels along arc from (12,76) at 0° to (128,76) at 180°
-  // semicircle: x = 70 - 58*cos(π*f), y = 76 - 62*sin(π*f)
   const rad = Math.PI * fraction;
   const kx  = (70 - 58 * Math.cos(rad)).toFixed(1);
   const ky  = (76 - 62 * Math.sin(rad)).toFixed(1);
-  elServoKnob.setAttribute('cx', kx);
-  elServoKnob.setAttribute('cy', ky);
+  if (elServoKnob) {
+    elServoKnob.setAttribute('cx', kx);
+    elServoKnob.setAttribute('cy', ky);
+  }
+
+  // Servo Page Large Arc
+  const elServoPageArcFill = $('servo-page-arc-fill');
+  const elServoPageKnob    = $('servo-page-knob');
+  const elServoPageAngleVal = $('servo-page-angle-val');
+  const elServoSpecTarget  = $('servo-spec-target');
+
+  if (elServoPageArcFill) elServoPageArcFill.style.strokeDashoffset = (204 * (1 - fraction)).toFixed(2);
+  if (elServoPageAngleVal) elServoPageAngleVal.textContent = rounded;
+  if (elServoSpecTarget) elServoSpecTarget.textContent = `${rounded}°`;
+
+  if (elServoPageKnob) {
+    const pkx = (80 - 65 * Math.cos(rad)).toFixed(1);
+    const pky = (82 - 65 * Math.sin(rad)).toFixed(1);
+    elServoPageKnob.setAttribute('cx', pkx);
+    elServoPageKnob.setAttribute('cy', pky);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -321,6 +365,12 @@ function updateVitalsUI() {
     const pct = pctClamp((v - 40) / 140 * 100);
     elHrBarFill.style.width = pct + '%';
     flash(elHrVal);
+
+    // Vitals Page Sync
+    const elVpHr = $('vitals-page-hr-val');
+    const elVpHrBadge = $('vitals-page-hr-badge');
+    if (elVpHr) elVpHr.textContent = v.toFixed(0);
+    if (elVpHrBadge) setBadge(elVpHrBadge, cls);
   }
 
   // SpO₂
@@ -329,11 +379,16 @@ function updateVitalsUI() {
     elSpo2Val.textContent = v.toFixed(1);
     if (elQsSpo2) elQsSpo2.textContent = v.toFixed(1);
     setBadge(elSpo2Badge, cls);
-    // Arc: 113 = full length; map 80–100% → 0–113
     const arcPct = pctClamp((v - 80) / 20);
     elSpo2Arc.style.strokeDashoffset = (113 * (1 - arcPct)).toFixed(1);
     elSpo2BarFill.style.width = pctClamp((v - 80) / 20 * 100) + '%';
     flash(elSpo2Val);
+
+    // Vitals Page Sync
+    const elVpSpo2 = $('vitals-page-spo2-val');
+    const elVpSpo2Badge = $('vitals-page-spo2-badge');
+    if (elVpSpo2) elVpSpo2.textContent = v.toFixed(1);
+    if (elVpSpo2Badge) setBadge(elVpSpo2Badge, cls);
   }
 
   // Temperature
@@ -346,18 +401,54 @@ function updateVitalsUI() {
     elThermFill.style.height = pct + '%';
     elTempBarFill.style.width = pct + '%';
     flash(elTempVal);
+
+    // Vitals Page Sync
+    const elVpTemp = $('vitals-page-temp-val');
+    const elVpTempBadge = $('vitals-page-temp-badge');
+    if (elVpTemp) elVpTemp.textContent = v.toFixed(1);
+    if (elVpTempBadge) setBadge(elVpTempBadge, cls);
   }
 
+  updateVitalsStats();
   deriveFSM();
 }
 
+function updateVitalsStats() {
+  if (historyHR.length === 0) return;
+
+  const hrMin = Math.min(...historyHR);
+  const hrMax = Math.max(...historyHR);
+  const hrAvg = historyHR.reduce((a,b)=>a+b, 0) / historyHR.length;
+
+  const spo2Min = Math.min(...historySPO2);
+  const spo2Max = Math.max(...historySPO2);
+  const spo2Avg = historySPO2.reduce((a,b)=>a+b, 0) / historySPO2.length;
+
+  const tempMin = Math.min(...historyTemp);
+  const tempMax = Math.max(...historyTemp);
+  const tempAvg = historyTemp.reduce((a,b)=>a+b, 0) / historyTemp.length;
+
+  if ($('hr-stat-min')) $('hr-stat-min').textContent = hrMin.toFixed(0);
+  if ($('hr-stat-max')) $('hr-stat-max').textContent = hrMax.toFixed(0);
+  if ($('vitals-avg-hr')) $('vitals-avg-hr').textContent = hrAvg.toFixed(0);
+
+  if ($('spo2-stat-min')) $('spo2-stat-min').textContent = spo2Min.toFixed(1);
+  if ($('spo2-stat-max')) $('spo2-stat-max').textContent = spo2Max.toFixed(1);
+  if ($('vitals-avg-spo2')) $('vitals-avg-spo2').textContent = spo2Avg.toFixed(1);
+
+  if ($('temp-stat-min')) $('temp-stat-min').textContent = tempMin.toFixed(1);
+  if ($('temp-stat-max')) $('temp-stat-max').textContent = tempMax.toFixed(1);
+  if ($('vitals-avg-temp')) $('vitals-avg-temp').textContent = tempAvg.toFixed(1);
+}
+
 function setBadge(el, cls) {
-  if (!cls) return;
+  if (!cls || !el) return;
   el.textContent = cls.toUpperCase();
   el.className = `vc-badge ${cls}`;
 }
 
 function flash(el) {
+  if (!el) return;
   el.classList.remove('value-updated');
   void el.offsetWidth;
   el.classList.add('value-updated');
@@ -372,7 +463,7 @@ function deriveFSM() {
 }
 
 // ---------------------------------------------------------------------------
-// CHART PUSH
+// CHART PUSH & HISTORY STREAM
 // ---------------------------------------------------------------------------
 function pushChart(hr, spo2, temp) {
   const label = formatTime(new Date());
@@ -382,6 +473,31 @@ function pushChart(hr, spo2, temp) {
     historyTs.shift(); historyHR.shift(); historySPO2.shift(); historyTemp.shift();
   }
   vitalsChart.update();
+  if (vitalsHistoryChart) vitalsHistoryChart.update();
+
+  // Add row to History Page table
+  addHistoryTableRow(label, hr, spo2, temp);
+}
+
+function addHistoryTableRow(time, hr, spo2, temp) {
+  const tbody = $('history-table-body');
+  if (!tbody) return;
+
+  const emptyRow = tbody.querySelector('.table-empty')?.parentNode;
+  if (emptyRow) emptyRow.remove();
+
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${time}</td>
+    <td><strong>${hr.toFixed(0)}</strong> bpm</td>
+    <td><strong>${spo2.toFixed(1)}</strong>%</td>
+    <td><strong>${temp.toFixed(1)}</strong> °C</td>
+    <td><span class="vc-badge ok">VALID</span></td>
+  `;
+  tbody.insertBefore(tr, tbody.firstChild);
+
+  const totalCount = tbody.querySelectorAll('tr').length;
+  if ($('history-total-count')) $('history-total-count').textContent = `${totalCount} readings recorded`;
 }
 
 // ---------------------------------------------------------------------------
@@ -389,17 +505,38 @@ function pushChart(hr, spo2, temp) {
 // ---------------------------------------------------------------------------
 function log(msg, type = 'info') {
   logCount++;
+  const formattedTime = formatTime(new Date());
+
   if (elLogEmpty) elLogEmpty.style.display = 'none';
   if (elLogCount) elLogCount.textContent = `${logCount} event${logCount !== 1 ? 's' : ''}`;
 
-  const entry = document.createElement('div');
-  entry.className = `log-entry ${type}`;
-  entry.innerHTML = `<span class="log-time">${formatTime(new Date())}</span><span class="log-msg">${msg}</span>`;
-  elLogScroll.appendChild(entry);
+  // Overview Log
+  const entry1 = document.createElement('div');
+  entry1.className = `log-entry ${type}`;
+  entry1.innerHTML = `<span class="log-time">${formattedTime}</span><span class="log-msg">${msg}</span>`;
+  elLogScroll.appendChild(entry1);
   elLogScroll.scrollTop = elLogScroll.scrollHeight;
 
-  const all = elLogScroll.querySelectorAll('.log-entry');
-  if (all.length > 200) all[0].remove();
+  const all1 = elLogScroll.querySelectorAll('.log-entry');
+  if (all1.length > 200) all1[0].remove();
+
+  // Log Page Scroll
+  const logPageScroll = $('log-page-scroll');
+  const logPageEmpty = $('log-page-empty');
+  const logPageCount = $('log-page-count');
+  if (logPageEmpty) logPageEmpty.style.display = 'none';
+  if (logPageCount) logPageCount.textContent = `${logCount} events recorded`;
+
+  if (logPageScroll) {
+    const entry2 = document.createElement('div');
+    entry2.className = `log-entry ${type}`;
+    entry2.innerHTML = `<span class="log-time">${formattedTime}</span><span class="log-msg">${msg}</span>`;
+    logPageScroll.appendChild(entry2);
+    logPageScroll.scrollTop = logPageScroll.scrollHeight;
+
+    const all2 = logPageScroll.querySelectorAll('.log-entry');
+    if (all2.length > 500) all2[0].remove();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -437,8 +574,8 @@ function connectMQTT() {
 
   mqttClient.onMessageArrived = msg => handleMQTT(msg.destinationName, msg.payloadString);
 
-  const feeds = [FEED_HR, FEED_SPO2, FEED_TEMP];
-  if (cfg.fsmFeed) feeds.push(cfg.fsmFeed);
+  const feeds = ['heart-rate', 'heart_rate', 'spo2', 'temperature', 'fsm-state', 'fsm_state'];
+  if (cfg.fsmFeed && !feeds.includes(cfg.fsmFeed)) feeds.push(cfg.fsmFeed);
 
   mqttClient.connect({
     useSSL: true,
@@ -451,8 +588,8 @@ function connectMQTT() {
       log('✅ MQTT connected', 'success');
       feeds.forEach(f => {
         mqttClient.subscribe(`${cfg.username}/feeds/${f}`);
-        log(`Subscribed → <strong>${f}</strong>`, 'info');
       });
+      log(`Subscribed to feeds (vitals & state)`, 'info');
     },
     onFailure: err => {
       setConn('error', 'MQTT failed');
@@ -463,13 +600,19 @@ function connectMQTT() {
 }
 
 function handleMQTT(topic, payload) {
-  const feedKey = topic.split('/').pop();
+  const feedKey = topic.split('/').pop().toLowerCase();
   const value   = parseFloat(payload);
 
-  if (feedKey === FEED_HR   && !isNaN(value)) { vitals.hr   = value; log(`❤️ HR: <strong>${value.toFixed(0)} bpm</strong>`, 'success'); }
-  else if (feedKey === FEED_SPO2 && !isNaN(value)) { vitals.spo2 = value; log(`🩸 SpO₂: <strong>${value.toFixed(1)}%</strong>`, 'success'); }
-  else if (feedKey === FEED_TEMP && !isNaN(value)) { vitals.temp = value; log(`🌡 Temp: <strong>${value.toFixed(1)} °C</strong>`, 'success'); }
-  else if (cfg.fsmFeed && feedKey === cfg.fsmFeed) {
+  if ((feedKey === 'heart-rate' || feedKey === 'heart_rate') && !isNaN(value)) {
+    vitals.hr = value;
+    log(`❤️ Live HR: <strong>${value.toFixed(0)} bpm</strong>`, 'success');
+  } else if (feedKey === 'spo2' && !isNaN(value)) {
+    vitals.spo2 = value;
+    log(`🩸 Live SpO₂: <strong>${value.toFixed(1)}%</strong>`, 'success');
+  } else if ((feedKey === 'temperature' || feedKey === 'temp') && !isNaN(value)) {
+    vitals.temp = value;
+    log(`🌡 Live Temp: <strong>${value.toFixed(1)} °C</strong>`, 'success');
+  } else if (feedKey === 'fsm-state' || feedKey === 'fsm_state' || (cfg.fsmFeed && feedKey === cfg.fsmFeed.toLowerCase())) {
     const s = payload.trim().toUpperCase();
     if (FSM_SERVO[s] !== undefined) setFSMState(s);
     return;
@@ -495,19 +638,22 @@ function stopREST() { if (pollTimer) { clearInterval(pollTimer); pollTimer = nul
 async function fetchFeeds() {
   const headers = { 'X-AIO-Key': cfg.key };
   const defs = [
-    { key: FEED_HR, prop: 'hr' },
+    { key: FEED_HR, altKey: 'heart_rate', prop: 'hr' },
     { key: FEED_SPO2, prop: 'spo2' },
     { key: FEED_TEMP, prop: 'temp' },
+    { key: 'fsm-state', altKey: 'fsm_state', prop: 'fsm' }
   ];
-  if (cfg.fsmFeed) defs.push({ key: cfg.fsmFeed, prop: 'fsm' });
 
   let any = false;
   let authError = false;
   let notFoundError = false;
 
-  await Promise.all(defs.map(async ({ key, prop }) => {
+  await Promise.all(defs.map(async ({ key, altKey, prop }) => {
     try {
-      const r = await fetch(`${AIO_REST_BASE}/${cfg.username}/feeds/${key}/data/last`, { headers });
+      let r = await fetch(`${AIO_REST_BASE}/${cfg.username}/feeds/${key}/data/last`, { headers });
+      if (r.status === 404 && altKey) {
+        r = await fetch(`${AIO_REST_BASE}/${cfg.username}/feeds/${altKey}/data/last`, { headers });
+      }
       if (r.status === 401) { authError = true; throw new Error('401 Unauthorized (Invalid AIO Key)'); }
       if (r.status === 404) { notFoundError = true; throw new Error(`404 Feed '${key}' not found`); }
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -520,7 +666,7 @@ async function fetchFeeds() {
         vitals[prop] = v; any = true;
       }
     } catch (e) {
-      log(`⚠️ Feed <strong>${key}</strong>: ${e.message}`, 'warning');
+      if (prop !== 'fsm') log(`⚠️ Feed <strong>${key}</strong>: ${e.message}`, 'warning');
     }
   }));
 
@@ -552,11 +698,13 @@ function onData() {
 
   if (vitals.hr !== null && vitals.spo2 !== null && vitals.temp !== null) {
     pushChart(vitals.hr, vitals.spo2, vitals.temp);
-    log(`Reading #${totalReadings} — HR: <strong>${vitals.hr.toFixed(0)}</strong> | SpO₂: <strong>${vitals.spo2.toFixed(1)}%</strong> | Temp: <strong>${vitals.temp.toFixed(1)} °C</strong>`, 'success');
+    log(`Live Stream #${totalReadings} — HR: <strong>${vitals.hr.toFixed(0)}</strong> | SpO₂: <strong>${vitals.spo2.toFixed(1)}%</strong> | Temp: <strong>${vitals.temp.toFixed(1)} °C</strong>`, 'success');
     clearTimeout(staleTimer);
     staleTimer = setTimeout(() => {
-      setFSMState('IDLE');
-      log('No new data — returned to IDLE', 'info');
+      if (currentFSM !== 'MEASURE') {
+        setFSMState('IDLE');
+        log('No new data — returned to IDLE', 'info');
+      }
     }, STALE_MS);
   }
 }
@@ -565,27 +713,61 @@ function onData() {
 // DEMO MODE
 // ---------------------------------------------------------------------------
 let demoTimer = null;
-let demoStep  = 0;
-const demoStates = ['IDLE','FOLD','MEASURE','MEASURE','HOLD','UNFOLD','COOLDOWN'];
+let demoMeasureInterval = null;
 
 function startDemo() {
-  log('🎮 <strong>Demo Mode</strong> — simulated data (no credentials set)', 'warning');
+  stopDemo();
+  log('🎮 <strong>Demo Mode</strong> — simulated live data streaming & steady calculating stage', 'warning');
   if (elSbSource) elSbSource.textContent = 'Demo';
   setConn('connecting', 'Demo Mode');
-  demoTimer = setInterval(() => {
-    demoStep = (demoStep + 1) % demoStates.length;
-    const s = demoStates[demoStep];
-    setFSMState(s);
-    if (s === 'MEASURE') {
-      vitals.hr   = 60 + Math.random() * 40;
-      vitals.spo2 = 95 + Math.random() * 5;
-      vitals.temp = 36 + Math.random() * 2;
-      onData();
+
+  let step = 0;
+
+  function demoStepLoop() {
+    if (step === 0) {
+      setFSMState('IDLE');
+      demoTimer = setTimeout(demoStepLoop, 3000);
+    } else if (step === 1) {
+      setFSMState('FOLD');
+      demoTimer = setTimeout(demoStepLoop, 1500);
+    } else if (step === 2) {
+      setFSMState('MEASURE');
+      log('⚡ <strong>Calculating stage active</strong> — holding position & streaming live vitals...', 'info');
+      
+      let count = 0;
+      demoMeasureInterval = setInterval(() => {
+        count++;
+        vitals.hr   = Math.round(68 + Math.random() * 15);
+        vitals.spo2 = parseFloat((96.5 + Math.random() * 3.0).toFixed(1));
+        vitals.temp = parseFloat((36.5 + Math.random() * 0.8).toFixed(1));
+        onData();
+        if (count >= 8) {
+          clearInterval(demoMeasureInterval);
+          demoMeasureInterval = null;
+          demoTimer = setTimeout(demoStepLoop, 500);
+        }
+      }, 1000);
+    } else if (step === 3) {
+      setFSMState('HOLD');
+      demoTimer = setTimeout(demoStepLoop, 3000);
+    } else if (step === 4) {
+      setFSMState('UNFOLD');
+      demoTimer = setTimeout(demoStepLoop, 1500);
+    } else if (step === 5) {
+      setFSMState('COOLDOWN');
+      demoTimer = setTimeout(demoStepLoop, 3000);
     }
-  }, 2200);
+
+    step = (step + 1) % 6;
+  }
+
+  demoStepLoop();
 }
 
-function stopDemo() { clearInterval(demoTimer); demoTimer = null; }
+function stopDemo() {
+  if (demoTimer) { clearTimeout(demoTimer); demoTimer = null; }
+  if (demoMeasureInterval) { clearInterval(demoMeasureInterval); demoMeasureInterval = null; }
+}
 
 // ---------------------------------------------------------------------------
 // NO CREDS BANNER
@@ -599,11 +781,11 @@ function showNoCreds() {
 // SETTINGS
 // ---------------------------------------------------------------------------
 function loadSettings() {
-  cfg.username    = localStorage.getItem('aio_username') || '';
-  cfg.key         = localStorage.getItem('aio_key')     || '';
-  cfg.source      = localStorage.getItem('datasource')  || 'mqtt';
+  cfg.username     = localStorage.getItem('aio_username')  || '';
+  cfg.key          = localStorage.getItem('aio_key')       || '';
+  cfg.source       = localStorage.getItem('datasource')    || 'mqtt';
   cfg.pollInterval = parseInt(localStorage.getItem('poll_interval') || '5', 10);
-  cfg.fsmFeed     = localStorage.getItem('fsm_feed')    || '';
+  cfg.fsmFeed      = localStorage.getItem('fsm_feed')      || 'fsm-state';
 }
 
 function saveSettings() {
@@ -625,6 +807,7 @@ function openSettingsModal() {
   elInpFsmFeed.value = cfg.fsmFeed;
   elInpPoll.value    = cfg.pollInterval;
   elPollVal.textContent = cfg.pollInterval;
+  if (elRadioSerial) elRadioSerial.checked = cfg.source === 'serial';
   elRadioMqtt.checked = cfg.source === 'mqtt';
   elRadioRest.checked = cfg.source === 'rest';
   elPollGroup.style.display = cfg.source === 'rest' ? 'flex' : 'none';
@@ -632,6 +815,70 @@ function openSettingsModal() {
 }
 
 function closeSettingsModal() { elModalOverlay.classList.add('hidden'); }
+
+// ---------------------------------------------------------------------------
+// WEB SERIAL (USB DIRECT)
+// ---------------------------------------------------------------------------
+let serialPort = null;
+let serialReader = null;
+
+async function connectWebSerial() {
+  if (!('serial' in navigator)) {
+    setConn('error', 'WebSerial Not Supported');
+    log('❌ Web Serial is not supported in this browser. Use Chrome or Edge.', 'error');
+    return;
+  }
+  try {
+    setConn('connecting', 'Selecting COM port…');
+    serialPort = await navigator.serial.requestPort();
+    await serialPort.open({ baudRate: 115200 });
+    setConn('connected', 'Connected (USB Serial)');
+    log('✅ Web Serial Connected (115200 baud)', 'success');
+    if (elSbSource) elSbSource.textContent = 'USB Serial (115200)';
+    readSerialLoop();
+  } catch (err) {
+    setConn('error', 'Serial Failed');
+    log(`❌ Serial connection cancelled or failed: ${err.message}`, 'error');
+  }
+}
+
+async function readSerialLoop() {
+  const textDecoder = new TextDecoderStream();
+  const readableStreamClosed = serialPort.readable.pipeTo(textDecoder.writable);
+  const reader = textDecoder.readable.getReader();
+  serialReader = reader;
+
+  let buffer = '';
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += value;
+      let lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (let line of lines) {
+        line = line.trim();
+        if (line.startsWith('{') && line.endsWith('}')) {
+          try {
+            const msg = JSON.parse(line);
+            if (msg.type === 'fsm' && msg.state) {
+              setFSMState(msg.state.toUpperCase());
+            } else if (msg.type === 'vitals') {
+              if (msg.hr !== undefined) vitals.hr = parseFloat(msg.hr);
+              if (msg.spo2 !== undefined) vitals.spo2 = parseFloat(msg.spo2);
+              if (msg.temp !== undefined) vitals.temp = parseFloat(msg.temp);
+              onData();
+            }
+          } catch(e) {}
+        }
+      }
+    }
+  } catch (err) {
+    log(`Serial read stream ended: ${err.message}`, 'warning');
+  } finally {
+    reader.releaseLock();
+  }
+}
 
 // ---------------------------------------------------------------------------
 // CONNECT
@@ -642,9 +889,13 @@ function connect() {
   if (mqttClient && mqttClient.isConnected()) try { mqttClient.disconnect(); } catch(_) {}
   if (elNoCreds) elNoCreds.classList.add('hidden');
 
-  if (!cfg.username || !cfg.key) { showNoCreds(); return; }
-  if (cfg.source === 'mqtt') connectMQTT();
-  else startREST();
+  if (cfg.source === 'serial') {
+    connectWebSerial();
+  } else {
+    if (!cfg.username || !cfg.key) { showNoCreds(); return; }
+    if (cfg.source === 'mqtt') connectMQTT();
+    else startREST();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -685,26 +936,231 @@ document.querySelectorAll('input[name="datasource"]').forEach(r => {
   });
 });
 
-$('btn-clear-chart').addEventListener('click', () => {
+// Clear chart data
+function clearChartData() {
   historyTs.length = historyHR.length = historySPO2.length = historyTemp.length = 0;
   vitalsChart.update();
-  log('Chart cleared', 'info');
-});
+  if (vitalsHistoryChart) vitalsHistoryChart.update();
 
-$('btn-clear-log').addEventListener('click', () => {
+  const tbody = $('history-table-body');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="table-empty">No telemetry readings recorded yet.</td></tr>';
+  if ($('history-total-count')) $('history-total-count').textContent = '0 readings recorded';
+  log('Chart and history cleared', 'info');
+}
+
+if ($('btn-clear-chart')) $('btn-clear-chart').addEventListener('click', clearChartData);
+if ($('btn-clear-history-page')) $('btn-clear-history-page').addEventListener('click', clearChartData);
+
+// Clear logs
+function clearLogData() {
   elLogScroll.querySelectorAll('.log-entry').forEach(e => e.remove());
   if (elLogEmpty) elLogEmpty.style.display = '';
   logCount = 0;
   if (elLogCount) elLogCount.textContent = '0 events';
+
+  const logPageScroll = $('log-page-scroll');
+  const logPageEmpty = $('log-page-empty');
+  if (logPageScroll) logPageScroll.querySelectorAll('.log-entry').forEach(e => e.remove());
+  if (logPageEmpty) logPageEmpty.style.display = '';
+  if ($('log-page-count')) $('log-page-count').textContent = '0 events recorded';
+}
+
+if ($('btn-clear-log')) $('btn-clear-log').addEventListener('click', clearLogData);
+if ($('btn-clear-log-page')) $('btn-clear-log-page').addEventListener('click', clearLogData);
+
+// Export CSV
+if ($('btn-export-csv')) {
+  $('btn-export-csv').addEventListener('click', () => {
+    if (historyTs.length === 0) {
+      alert('No vitals data recorded yet to export.');
+      return;
+    }
+    let csv = 'Timestamp,HeartRate_BPM,SpO2_Percent,Temperature_C\n';
+    for (let i = 0; i < historyTs.length; i++) {
+      csv += `"${historyTs[i]}",${historyHR[i]},${historySPO2[i]},${historyTemp[i]}\n`;
+    }
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `vitals_telemetry_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    log('📥 Exported vitals telemetry to CSV', 'success');
+  });
+}
+
+// Export Log
+if ($('btn-export-log')) {
+  $('btn-export-log').addEventListener('click', () => {
+    const entries = document.querySelectorAll('#log-page-scroll .log-entry');
+    if (entries.length === 0) {
+      alert('No log events to export.');
+      return;
+    }
+    let text = '=== ROBOTIC ARM VITALS MONITOR LOG ===\n';
+    entries.forEach(e => {
+      text += `${e.textContent}\n`;
+    });
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `session_log_${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    log('📋 Exported session log', 'success');
+  });
+}
+
+// Log Search Filter
+if ($('inp-log-search')) {
+  $('inp-log-search').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase().trim();
+    document.querySelectorAll('#log-page-scroll .log-entry').forEach(entry => {
+      const match = entry.textContent.toLowerCase().includes(q);
+      entry.style.display = match ? '' : 'none';
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// CONTROL COMMANDS (Fold, Unfold, Measure, Servo Direct Angle)
+// ---------------------------------------------------------------------------
+async function sendControlCommand(cmd, arg = null) {
+  log(`🎮 Command triggered: <strong>${cmd}</strong>${arg !== null ? ` (${arg}°)` : ''}`, 'info');
+
+  if (cmd === 'fold') setFSMState('FOLD');
+  else if (cmd === 'unfold') setFSMState('UNFOLD');
+  else if (cmd === 'measure') setFSMState('MEASURE');
+  else if (cmd === 'servo' && arg !== null) {
+    animateServo(arg);
+    if ($('inp-servo-manual')) $('inp-servo-manual').value = arg;
+    if ($('servo-manual-val')) $('servo-manual-val').textContent = `${arg}°`;
+  }
+
+  // WebSerial transmission over USB if connected
+  if (serialPort && serialPort.writable) {
+    try {
+      const writer = serialPort.writable.getWriter();
+      const payload = arg !== null ? `{"cmd":"${cmd}","angle":${arg}}\n` : `{"cmd":"${cmd}"}\n`;
+      await writer.write(new TextEncoder().encode(payload));
+      writer.releaseLock();
+      log(`📡 Sent USB Serial command: <code>${payload.trim()}</code>`, 'success');
+    } catch(err) {
+      log(`⚠️ USB Serial transmit error: ${err.message}`, 'warning');
+    }
+  }
+}
+
+// Action Bar Buttons
+['btn-action-fold', 'btn-servo-page-fold'].forEach(id => {
+  if ($(id)) $(id).addEventListener('click', () => sendControlCommand('fold'));
+});
+['btn-action-unfold', 'btn-servo-page-unfold'].forEach(id => {
+  if ($(id)) $(id).addEventListener('click', () => sendControlCommand('unfold'));
+});
+['btn-action-measure', 'btn-servo-page-measure'].forEach(id => {
+  if ($(id)) $(id).addEventListener('click', () => sendControlCommand('measure'));
 });
 
-// Nav tabs (visual only for now — could switch panels)
-document.querySelectorAll('.nav-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
+// Servo Preset Buttons
+document.querySelectorAll('.sp-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const angle = parseInt(btn.dataset.angle, 10);
+    sendControlCommand('servo', angle);
   });
 });
+
+// Servo Manual Slider
+if ($('inp-servo-manual')) {
+  $('inp-servo-manual').addEventListener('input', e => {
+    const angle = parseInt(e.target.value, 10);
+    if ($('servo-manual-val')) $('servo-manual-val').textContent = `${angle}°`;
+    renderServo(angle);
+  });
+  $('inp-servo-manual').addEventListener('change', e => {
+    const angle = parseInt(e.target.value, 10);
+    sendControlCommand('servo', angle);
+  });
+}
+
+// Interactive Legend Dataset Toggles (History Page)
+function toggleHistoryDataset(dsIndex, btnId) {
+  if (!vitalsHistoryChart) return;
+  const isVisible = vitalsHistoryChart.isDatasetVisible(dsIndex);
+  if (isVisible) {
+    vitalsHistoryChart.hide(dsIndex);
+    if ($(btnId)) $(btnId).classList.remove('active');
+  } else {
+    vitalsHistoryChart.show(dsIndex);
+    if ($(btnId)) $(btnId).classList.add('active');
+  }
+}
+
+if ($('toggle-ds-hr')) $('toggle-ds-hr').addEventListener('click', () => toggleHistoryDataset(0, 'toggle-ds-hr'));
+if ($('toggle-ds-spo2')) $('toggle-ds-spo2').addEventListener('click', () => toggleHistoryDataset(1, 'toggle-ds-spo2'));
+if ($('toggle-ds-temp')) $('toggle-ds-temp').addEventListener('click', () => toggleHistoryDataset(2, 'toggle-ds-temp'));
+
+// Log Category Filter Pills (Log Page)
+document.querySelectorAll('.log-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.log-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    const filter = pill.dataset.filter;
+    document.querySelectorAll('#log-page-scroll .log-entry').forEach(entry => {
+      if (filter === 'all' || entry.classList.contains(filter)) {
+        entry.style.display = '';
+      } else {
+        entry.style.display = 'none';
+      }
+    });
+  });
+});
+
+// Nav tab switching (Main overview vs Vitals vs Servo vs History vs Log)
+function switchPage(tabId) {
+  document.querySelectorAll('.nav-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.tab === tabId);
+  });
+  document.querySelectorAll('.view-page').forEach(page => {
+    page.classList.toggle('active-page', page.id === `page-${tabId}`);
+  });
+  if (tabId === 'history' && vitalsHistoryChart) {
+    vitalsHistoryChart.update();
+  }
+}
+
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    switchPage(tab.dataset.tab);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// INITIAL HISTORY DATA SEED
+// ---------------------------------------------------------------------------
+function seedInitialHistoryData() {
+  const now = new Date();
+  for (let i = 6; i >= 1; i--) {
+    const t = new Date(now.getTime() - i * 5000);
+    const timeStr = formatTime(t);
+    const hr = Math.round(72 + (Math.random() * 6 - 3));
+    const spo2 = parseFloat((97.8 + (Math.random() * 1.0 - 0.5)).toFixed(1));
+    const temp = parseFloat((36.6 + (Math.random() * 0.4 - 0.2)).toFixed(1));
+    historyTs.push(timeStr);
+    historyHR.push(hr);
+    historySPO2.push(spo2);
+    historyTemp.push(temp);
+    addHistoryTableRow(timeStr, hr, spo2, temp);
+  }
+  vitals.hr   = historyHR[historyHR.length - 1];
+  vitals.spo2 = historySPO2[historySPO2.length - 1];
+  vitals.temp = historyTemp[historyTemp.length - 1];
+  updateVitalsUI();
+  if (vitalsChart) vitalsChart.update();
+  if (vitalsHistoryChart) vitalsHistoryChart.update();
+}
 
 // ---------------------------------------------------------------------------
 // INIT
@@ -712,6 +1168,7 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
 function init() {
   loadSettings();
   initChart();
+  seedInitialHistoryData();
   renderServo(0);
   setFSMState('IDLE');
   startUptime();

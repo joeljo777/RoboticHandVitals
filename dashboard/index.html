@@ -41,6 +41,14 @@
           <label>Data Source</label>
           <div class="radio-group">
             <label class="radio-option">
+              <input type="radio" name="datasource" value="serial" id="radio-serial" />
+              <span class="radio-box"><span class="radio-dot"></span></span>
+              <span class="radio-label">
+                <strong>Web Serial (USB Direct)</strong>
+                <small>Connect directly to ESP32 COM port (instant, no cloud key required)</small>
+              </span>
+            </label>
+            <label class="radio-option">
               <input type="radio" name="datasource" value="mqtt" id="radio-mqtt" />
               <span class="radio-box"><span class="radio-dot"></span></span>
               <span class="radio-label">
@@ -225,6 +233,13 @@
             </div>
           </div>
 
+          <!-- Action Controls -->
+          <div class="quick-action-bar">
+            <button class="btn btn-sm btn-action" id="btn-action-unfold" title="Open fingers">✋ Open (0°)</button>
+            <button class="btn btn-sm btn-action" id="btn-action-fold" title="Fold fingers">✊ Grip (180°)</button>
+            <button class="btn btn-sm btn-action btn-action-primary" id="btn-action-measure" title="Trigger Vitals Test">⚡ Measure</button>
+          </div>
+
           <!-- Last update -->
           <div class="strip-meta strip-meta--right">
             <span class="meta-label">Last Update</span>
@@ -242,217 +257,478 @@
           <button class="btn btn-sm btn-outline" onclick="openSettingsModal()">Configure</button>
         </div>
 
-        <!-- ──────────────────────────────────────────
-             MAIN GRID
-        ─────────────────────────────────────────── -->
-        <div class="main-grid">
+        <!-- ==========================================
+             PAGE 1: OVERVIEW (MAIN PAGE)
+        =========================================== -->
+        <div id="page-overview" class="view-page active-page">
+          <div class="main-grid">
 
-          <!-- ── COL LEFT: Vitals cards ── -->
-          <div class="col-left">
+            <!-- ── COL LEFT: Vitals cards ── -->
+            <div class="col-left">
 
-            <!-- Heart Rate Card -->
-            <div class="vital-card" id="card-hr">
-              <div class="vc-header">
-                <div class="vc-icon-wrap hr-color">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                      d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z" />
-                  </svg>
-                </div>
-                <span class="vc-name">Heart Rate</span>
-                <span class="vc-badge" id="hr-badge">—</span>
-              </div>
-              <div class="vc-value-row">
-                <div class="vc-pulse" id="pulse-ring" aria-hidden="true">
-                  <span class="pulse-circle"></span>
-                </div>
-                <span class="vc-number" id="hr-value">—</span>
-                <span class="vc-unit">bpm</span>
-              </div>
-              <div class="vc-bar-wrap">
-                <div class="vc-bar-track">
-                  <div class="vc-bar-fill hr-bar" id="hr-bar-fill"></div>
-                  <!-- Normal zone marker -->
-                  <div class="vc-bar-zone" style="left:15%;width:30%"></div>
-                </div>
-                <span class="vc-range">60 – 100 bpm</span>
-              </div>
-            </div>
-
-            <!-- SpO₂ Card -->
-            <div class="vital-card" id="card-spo2">
-              <div class="vc-header">
-                <div class="vc-icon-wrap spo2-color">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z" />
-                  </svg>
-                </div>
-                <span class="vc-name">SpO₂</span>
-                <span class="vc-badge" id="spo2-badge">—</span>
-              </div>
-              <div class="vc-value-row">
-                <!-- Arc gauge -->
-                <div class="mini-arc" aria-hidden="true">
-                  <svg viewBox="0 0 80 48" fill="none">
-                    <path d="M8 44 A36 36 0 0 1 72 44" stroke="#e8e5df" stroke-width="6" stroke-linecap="round" />
-                    <path id="spo2-arc" d="M8 44 A36 36 0 0 1 72 44" stroke="#D4F53C" stroke-width="6"
-                      stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="113" />
-                  </svg>
-                </div>
-                <span class="vc-number" id="spo2-value">—</span>
-                <span class="vc-unit">%</span>
-              </div>
-              <div class="vc-bar-wrap">
-                <div class="vc-bar-track">
-                  <div class="vc-bar-fill spo2-bar" id="spo2-bar-fill"></div>
-                  <div class="vc-bar-zone" style="left:75%;width:25%"></div>
-                </div>
-                <span class="vc-range">95 – 100 %</span>
-              </div>
-            </div>
-
-            <!-- Temperature Card -->
-            <div class="vital-card" id="card-temp">
-              <div class="vc-header">
-                <div class="vc-icon-wrap temp-color">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                    stroke-linecap="round">
-                    <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
-                  </svg>
-                </div>
-                <span class="vc-name">Temperature</span>
-                <span class="vc-badge" id="temp-badge">—</span>
-              </div>
-              <div class="vc-value-row">
-                <!-- Therm visual -->
-                <div class="mini-therm" aria-hidden="true">
-                  <div class="therm-track">
-                    <div class="therm-fill-inner" id="therm-fill"></div>
+              <!-- Heart Rate Card -->
+              <div class="vital-card" id="card-hr">
+                <div class="vc-header">
+                  <div class="vc-icon-wrap hr-color">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z" />
+                    </svg>
                   </div>
-                  <div class="therm-bulb-dot"></div>
+                  <span class="vc-name">Heart Rate</span>
+                  <span class="vc-badge" id="hr-badge">—</span>
                 </div>
-                <span class="vc-number" id="temp-value">—</span>
-                <span class="vc-unit">°C</span>
-              </div>
-              <div class="vc-bar-wrap">
-                <div class="vc-bar-track">
-                  <div class="vc-bar-fill temp-bar" id="temp-bar-fill"></div>
-                  <div class="vc-bar-zone" style="left:40%;width:15%"></div>
+                <div class="vc-value-row">
+                  <div class="vc-pulse" id="pulse-ring" aria-hidden="true">
+                    <span class="pulse-circle"></span>
+                  </div>
+                  <span class="vc-number" id="hr-value">—</span>
+                  <span class="vc-unit">bpm</span>
                 </div>
-                <span class="vc-range">36 – 37.5 °C</span>
-              </div>
-            </div>
-
-          </div><!-- /col-left -->
-
-          <!-- ── COL MID: Hand Visual + Servo ── -->
-          <div class="col-mid">
-
-            <div class="hand-card">
-              <div class="hand-card-header">
-                <span class="hc-title">Robotic Hand</span>
-                <span class="hc-sub" id="hand-status-label">IDLE — fingers open</span>
+                <div class="vc-bar-wrap">
+                  <div class="vc-bar-track">
+                    <div class="vc-bar-fill hr-bar" id="hr-bar-fill"></div>
+                    <div class="vc-bar-zone" style="left:15%;width:30%"></div>
+                  </div>
+                  <span class="vc-range">60 – 100 bpm</span>
+                </div>
               </div>
 
-              <!-- Photorealistic Metallic & Carbon Fiber Robotic Arm Visual -->
-              <div class="hand-visual-wrap" aria-label="Servo position">
-                <div class="photo-hand-container" id="photo-hand-container">
-                  <!-- Photorealistic Open State Render -->
-                  <img src="assets/robotic_hand_open.png" alt="Robotic Hand Open"
-                    class="hand-render hand-render-open active" id="img-hand-open" />
-                  <!-- Photorealistic Closed State Render -->
-                  <img src="assets/robotic_hand_closed.png" alt="Robotic Hand Closed"
-                    class="hand-render hand-render-closed" id="img-hand-closed" />
+              <!-- SpO₂ Card -->
+              <div class="vital-card" id="card-spo2">
+                <div class="vc-header">
+                  <div class="vc-icon-wrap spo2-color">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z" />
+                    </svg>
+                  </div>
+                  <span class="vc-name">SpO₂</span>
+                  <span class="vc-badge" id="spo2-badge">—</span>
+                </div>
+                <div class="vc-value-row">
+                  <div class="mini-arc" aria-hidden="true">
+                    <svg viewBox="0 0 80 48" fill="none">
+                      <path d="M8 44 A36 36 0 0 1 72 44" stroke="#e8e5df" stroke-width="6" stroke-linecap="round" />
+                      <path id="spo2-arc" d="M8 44 A36 36 0 0 1 72 44" stroke="#D4F53C" stroke-width="6"
+                        stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="113" />
+                    </svg>
+                  </div>
+                  <span class="vc-number" id="spo2-value">—</span>
+                  <span class="vc-unit">%</span>
+                </div>
+                <div class="vc-bar-wrap">
+                  <div class="vc-bar-track">
+                    <div class="vc-bar-fill spo2-bar" id="spo2-bar-fill"></div>
+                    <div class="vc-bar-zone" style="left:75%;width:25%"></div>
+                  </div>
+                  <span class="vc-range">95 – 100 %</span>
+                </div>
+              </div>
 
-                  <!-- Dynamic Metallic & Carbon Fiber Telemetry Overlays -->
-                  <div class="hand-hud-overlay">
-                    <!-- Sensor Pulse Glow Ring -->
-                    <div class="sensor-pulse-glow" id="sensor-glow"></div>
-                    <!-- Cybernetic Telemetry Reticle -->
-                    <div class="hud-reticle">
-                      <div class="reticle-ring"></div>
-                      <div class="reticle-dot"></div>
+              <!-- Temperature Card -->
+              <div class="vital-card" id="card-temp">
+                <div class="vc-header">
+                  <div class="vc-icon-wrap temp-color">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                      stroke-linecap="round">
+                      <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
+                    </svg>
+                  </div>
+                  <span class="vc-name">Temperature</span>
+                  <span class="vc-badge" id="temp-badge">—</span>
+                </div>
+                <div class="vc-value-row">
+                  <div class="mini-therm" aria-hidden="true">
+                    <div class="therm-track">
+                      <div class="therm-fill-inner" id="therm-fill"></div>
                     </div>
-                    <!-- Joint Telemetry Indicators -->
-                    <div class="joint-indicator joint-mcp" title="MCP Joint"></div>
-                    <div class="joint-indicator joint-pip" title="PIP Joint"></div>
-                    <!-- Status LED Array -->
-                    <div class="status-led-array">
-                      <span class="led-dot led-pwr" title="Power OK"></span>
-                      <span class="led-dot led-act" id="led-actuator" title="Actuator State"></span>
-                      <span class="led-dot led-snr" id="led-sensor" title="Sensor Active"></span>
+                    <div class="therm-bulb-dot"></div>
+                  </div>
+                  <span class="vc-number" id="temp-value">—</span>
+                  <span class="vc-unit">°C</span>
+                </div>
+                <div class="vc-bar-wrap">
+                  <div class="vc-bar-track">
+                    <div class="vc-bar-fill temp-bar" id="temp-bar-fill"></div>
+                    <div class="vc-bar-zone" style="left:40%;width:15%"></div>
+                  </div>
+                  <span class="vc-range">36 – 37.5 °C</span>
+                </div>
+              </div>
+
+            </div><!-- /col-left -->
+
+            <!-- ── COL MID: Hand Visual + Servo ── -->
+            <div class="col-mid">
+
+              <div class="hand-card">
+                <div class="hand-card-header">
+                  <span class="hc-title">Robotic Hand</span>
+                  <span class="hc-sub" id="hand-status-label">IDLE — fingers open</span>
+                </div>
+
+                <div class="hand-visual-wrap" aria-label="Servo position">
+                  <div class="photo-hand-container" id="photo-hand-container">
+                    <img src="assets/robotic_hand_open.png" alt="Robotic Hand Open"
+                      class="hand-render hand-render-open active" id="img-hand-open" />
+                    <img src="assets/robotic_hand_closed.png" alt="Robotic Hand Closed"
+                      class="hand-render hand-render-closed" id="img-hand-closed" />
+
+                    <div class="hand-hud-overlay">
+                      <div class="sensor-pulse-glow" id="sensor-glow"></div>
+                      <div class="hud-reticle">
+                        <div class="reticle-ring"></div>
+                        <div class="reticle-dot"></div>
+                      </div>
+                      <div class="joint-indicator joint-mcp" title="MCP Joint"></div>
+                      <div class="joint-indicator joint-pip" title="PIP Joint"></div>
+                      <div class="status-led-array">
+                        <span class="led-dot led-pwr" title="Power OK"></span>
+                        <span class="led-dot led-act" id="led-actuator" title="Actuator State"></span>
+                        <span class="led-dot led-snr" id="led-sensor" title="Sensor Active"></span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <!-- Servo arc -->
-              <div class="servo-section">
-                <span class="servo-label-text">Servo Position</span>
-                <div class="servo-arc-container">
-                  <svg class="servo-arc-svg" viewBox="0 0 140 80" fill="none">
-                    <path d="M12 76 A62 62 0 0 1 128 76" stroke="#e8e5df" stroke-width="10" stroke-linecap="round" />
-                    <path id="servo-arc-fill" d="M12 76 A62 62 0 0 1 128 76" stroke="#D4F53C" stroke-width="10"
-                      stroke-linecap="round" stroke-dasharray="196" stroke-dashoffset="196" />
-                    <circle id="servo-knob" cx="12" cy="76" r="7" fill="#1a1a1a" />
-                    <!-- Tick marks -->
-                    <line x1="12" y1="76" x2="12" y2="68" stroke="#ccc" stroke-width="2" stroke-linecap="round"
-                      transform="rotate(0 12 76)" />
-                    <line x1="70" y1="14" x2="70" y2="22" stroke="#ccc" stroke-width="2" stroke-linecap="round" />
-                    <line x1="128" y1="76" x2="128" y2="68" stroke="#ccc" stroke-width="2" stroke-linecap="round" />
-                  </svg>
-                  <div class="servo-center-val">
-                    <span id="servo-angle-val">0</span><span class="servo-deg">°</span>
+                <div class="servo-section">
+                  <span class="servo-label-text">Servo Position</span>
+                  <div class="servo-arc-container">
+                    <svg class="servo-arc-svg" viewBox="0 0 140 80" fill="none">
+                      <path d="M12 76 A62 62 0 0 1 128 76" stroke="#e8e5df" stroke-width="10" stroke-linecap="round" />
+                      <path id="servo-arc-fill" d="M12 76 A62 62 0 0 1 128 76" stroke="#D4F53C" stroke-width="10"
+                        stroke-linecap="round" stroke-dasharray="196" stroke-dashoffset="196" />
+                      <circle id="servo-knob" cx="12" cy="76" r="7" fill="#1a1a1a" />
+                      <line x1="12" y1="76" x2="12" y2="68" stroke="#ccc" stroke-width="2" stroke-linecap="round" />
+                      <line x1="70" y1="14" x2="70" y2="22" stroke="#ccc" stroke-width="2" stroke-linecap="round" />
+                      <line x1="128" y1="76" x2="128" y2="68" stroke="#ccc" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    <div class="servo-center-val">
+                      <span id="servo-angle-val">0</span><span class="servo-deg">°</span>
+                    </div>
+                  </div>
+                  <div class="servo-labels-row">
+                    <span>0°</span><span class="servo-open-close">Open → Close</span><span>180°</span>
                   </div>
                 </div>
-                <div class="servo-labels-row">
-                  <span>0°</span><span class="servo-open-close">Open → Close</span><span>180°</span>
+
+              </div>
+
+            </div><!-- /col-mid -->
+
+            <!-- ── COL RIGHT: Chart + Log ── -->
+            <div class="col-right">
+
+              <div class="chart-card">
+                <div class="chart-card-header">
+                  <span class="cc-title">Vitals History</span>
+                  <div class="chart-legend">
+                    <span class="cl-dot cl-hr"></span><span>HR</span>
+                    <span class="cl-dot cl-spo2"></span><span>SpO₂</span>
+                    <span class="cl-dot cl-temp"></span><span>Temp</span>
+                  </div>
+                  <button id="btn-clear-chart" class="btn-xs-ghost">Clear</button>
+                </div>
+                <div class="chart-area">
+                  <canvas id="vitals-chart" role="img" aria-label="Vitals history"></canvas>
                 </div>
               </div>
 
-            </div>
-
-          </div><!-- /col-mid -->
-
-          <!-- ── COL RIGHT: Chart + Log ── -->
-          <div class="col-right">
-
-            <!-- Chart card -->
-            <div class="chart-card">
-              <div class="chart-card-header">
-                <span class="cc-title">Vitals History</span>
-                <div class="chart-legend">
-                  <span class="cl-dot cl-hr"></span><span>HR</span>
-                  <span class="cl-dot cl-spo2"></span><span>SpO₂</span>
-                  <span class="cl-dot cl-temp"></span><span>Temp</span>
+              <div class="log-card">
+                <div class="log-card-header">
+                  <span class="cc-title">Session Log</span>
+                  <span class="log-count" id="log-count">0 events</span>
+                  <button id="btn-clear-log" class="btn-xs-ghost">Clear</button>
                 </div>
-                <button id="btn-clear-chart" class="btn-xs-ghost">Clear</button>
+                <div class="log-scroll" id="log-scroll" role="log" aria-live="polite">
+                  <div class="log-empty" id="log-empty">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="1.5">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <span>Waiting for data…</span>
+                  </div>
+                </div>
               </div>
-              <div class="chart-area">
-                <canvas id="vitals-chart" role="img" aria-label="Vitals history"></canvas>
+
+            </div><!-- /col-right -->
+
+          </div><!-- /main-grid -->
+        </div>
+
+        <!-- ==========================================
+             PAGE 2: VITALS DETAILED VIEW
+        =========================================== -->
+        <div id="page-vitals" class="view-page">
+          <div class="page-container">
+            <div class="page-header-banner">
+              <div class="phb-text">
+                <h2>Biometric Vitals Telemetry</h2>
+                <p>Pulse oximetry, heart rate kinetics & die skin temperature monitoring</p>
+              </div>
+              <div class="vitals-summary-chips">
+                <span class="v-chip v-chip-hr">❤️ Avg HR: <strong id="vitals-avg-hr">—</strong> bpm</span>
+                <span class="v-chip v-chip-spo2">🩸 Avg SpO₂: <strong id="vitals-avg-spo2">—</strong> %</span>
+                <span class="v-chip v-chip-temp">🌡 Avg Temp: <strong id="vitals-avg-temp">—</strong> °C</span>
               </div>
             </div>
 
-            <!-- Log card -->
-            <div class="log-card">
-              <div class="log-card-header">
-                <span class="cc-title">Session Log</span>
-                <span class="log-count" id="log-count">0 events</span>
-                <button id="btn-clear-log" class="btn-xs-ghost">Clear</button>
+            <div class="vitals-detail-grid">
+              <!-- HR Card -->
+              <div class="vd-card card-hr">
+                <div class="vd-card-header">
+                  <div class="vc-icon-wrap hr-color">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z" />
+                    </svg>
+                  </div>
+                  <span class="vd-card-title">Heart Rate (PPG)</span>
+                  <span class="vc-badge" id="vitals-page-hr-badge">—</span>
+                </div>
+                <div class="vd-val-row">
+                  <span class="vd-number" id="vitals-page-hr-val">—</span>
+                  <span class="vd-unit">BPM</span>
+                </div>
+                <div class="vd-stats-bar">
+                  <div class="vds-item"><span>Min</span><strong id="hr-stat-min">—</strong></div>
+                  <div class="vds-item"><span>Max</span><strong id="hr-stat-max">—</strong></div>
+                  <div class="vds-item"><span>Normal Range</span><strong>60 – 100</strong></div>
+                </div>
+                <div class="vd-desc">Optical photoplethysmography via MAX30102 IR LED absorption during finger placement.</div>
               </div>
-              <div class="log-scroll" id="log-scroll" role="log" aria-live="polite">
-                <div class="log-empty" id="log-empty">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="1.5">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+
+              <!-- SpO2 Card -->
+              <div class="vd-card card-spo2">
+                <div class="vd-card-header">
+                  <div class="vc-icon-wrap spo2-color">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z" />
+                    </svg>
+                  </div>
+                  <span class="vd-card-title">Blood Oxygen (SpO₂)</span>
+                  <span class="vc-badge" id="vitals-page-spo2-badge">—</span>
+                </div>
+                <div class="vd-val-row">
+                  <span class="vd-number" id="vitals-page-spo2-val">—</span>
+                  <span class="vd-unit">%</span>
+                </div>
+                <div class="vd-stats-bar">
+                  <div class="vds-item"><span>Min</span><strong id="spo2-stat-min">—</strong></div>
+                  <div class="vds-item"><span>Max</span><strong id="spo2-stat-max">—</strong></div>
+                  <div class="vds-item"><span>Normal Range</span><strong>95 – 100%</strong></div>
+                </div>
+                <div class="vd-desc">Calculated via Maxim Integrated dual-wavelength ratio of Red (660nm) vs Infrared (880nm) light.</div>
+              </div>
+
+              <!-- Temp Card -->
+              <div class="vd-card card-temp">
+                <div class="vd-card-header">
+                  <div class="vc-icon-wrap temp-color">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                      <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
+                    </svg>
+                  </div>
+                  <span class="vd-card-title">Skin Temperature</span>
+                  <span class="vc-badge" id="vitals-page-temp-badge">—</span>
+                </div>
+                <div class="vd-val-row">
+                  <span class="vd-number" id="vitals-page-temp-val">—</span>
+                  <span class="vd-unit">°C</span>
+                </div>
+                <div class="vd-stats-bar">
+                  <div class="vds-item"><span>Min</span><strong id="temp-stat-min">—</strong></div>
+                  <div class="vds-item"><span>Max</span><strong id="temp-stat-max">—</strong></div>
+                  <div class="vds-item"><span>Offset</span><strong>+4.2 °C</strong></div>
+                </div>
+                <div class="vd-desc">Internal die temperature sensor with calibrated skin thermal offset (+4.2°C).</div>
+              </div>
+            </div>
+
+            <!-- Hardware Specs -->
+            <div class="hardware-spec-banner">
+              <div class="hsb-title">MAX30102 Sensor Architecture</div>
+              <div class="hsb-grid">
+                <div class="hsb-item"><span class="hsb-lbl">Bus Interface</span><strong>I2C (Address 0x57)</strong></div>
+                <div class="hsb-item"><span class="hsb-lbl">Pin Connections</span><strong>GPIO21 (SDA) · GPIO22 (SCL)</strong></div>
+                <div class="hsb-item"><span class="hsb-lbl">Sampling Config</span><strong>100 Hz / 411 µs Pulse Width</strong></div>
+                <div class="hsb-item"><span class="hsb-lbl">Placement Threshold</span><strong>&gt; 50,000 Raw IR Count</strong></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ==========================================
+             PAGE 3: SERVO KINETICS VIEW
+        =========================================== -->
+        <div id="page-servo" class="view-page">
+          <div class="page-container">
+            <div class="page-header-banner">
+              <div class="phb-text">
+                <h2>Actuator & Tendon Kinematics</h2>
+                <p>PWM position control, finger flex angle & tendon motor telemetry</p>
+              </div>
+              <div class="servo-status-chip" id="servo-page-fsm-text">
+                FSM Mode: IDLE (0°)
+              </div>
+            </div>
+
+            <div class="servo-detail-grid">
+              <!-- Left: Big 3D Hand View -->
+              <div class="servo-hand-card">
+                <div class="shc-top">
+                  <span class="shc-title">3D Printed Hand Renders</span>
+                  <span class="shc-sub" id="servo-page-status">Fingers Open (0°)</span>
+                </div>
+                <div class="servo-photo-wrap">
+                  <div class="photo-hand-container">
+                    <img src="assets/robotic_hand_open.png" alt="Robotic Hand Open" class="hand-render hand-render-open active" id="img-hand-open-servo" />
+                    <img src="assets/robotic_hand_closed.png" alt="Robotic Hand Closed" class="hand-render hand-render-closed" id="img-hand-closed-servo" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right: Detailed Dial & Specs -->
+              <div class="servo-telemetry-panel">
+                <div class="stp-header">
+                  <span class="stp-title">Servo Position Gauge</span>
+                  <span class="stp-pin">Signal → GPIO13</span>
+                </div>
+
+                <div class="servo-large-gauge">
+                  <svg class="servo-arc-svg-large" viewBox="0 0 160 90" fill="none">
+                    <path d="M15 82 A65 65 0 0 1 145 82" stroke="#e8e5df" stroke-width="12" stroke-linecap="round" />
+                    <path id="servo-page-arc-fill" d="M15 82 A65 65 0 0 1 145 82" stroke="#D4F53C" stroke-width="12" stroke-linecap="round" stroke-dasharray="204" stroke-dashoffset="204" />
+                    <circle id="servo-page-knob" cx="15" cy="82" r="8" fill="#1a1a1a" />
                   </svg>
-                  <span>Waiting for data…</span>
+                  <div class="servo-page-angle-display">
+                    <span id="servo-page-angle-val">0</span><span class="deg">°</span>
+                  </div>
+                </div>
+
+                <div class="servo-slider-block">
+                  <div class="ssb-label-row">
+                    <span>Manual Servo Slider</span>
+                    <strong id="servo-manual-val">0°</strong>
+                  </div>
+                  <input type="range" id="inp-servo-manual" min="0" max="180" value="0" step="1" />
+                </div>
+
+                <div class="servo-preset-grid">
+                  <button class="sp-box sp-btn" id="btn-preset-open" data-angle="0"><span>OPEN</span><strong>0°</strong></button>
+                  <button class="sp-box sp-btn" id="btn-preset-mid" data-angle="90"><span>MID</span><strong>90°</strong></button>
+                  <button class="sp-box sp-btn" id="btn-preset-fold" data-angle="180"><span>FOLD</span><strong>180°</strong></button>
+                </div>
+
+                <div class="servo-action-btns">
+                  <button class="btn btn-sm btn-action" id="btn-servo-page-unfold">✋ Open (0°)</button>
+                  <button class="btn btn-sm btn-action" id="btn-servo-page-fold">✊ Close (180°)</button>
+                  <button class="btn btn-sm btn-action btn-action-primary" id="btn-servo-page-measure">⚡ Start Vitals Test</button>
+                </div>
+
+                <div class="servo-spec-table">
+                  <div class="sst-row"><span>Ramp Speed</span><strong>15 ms / 1° step delay (~2.7s sweep)</strong></div>
+                  <div class="sst-row"><span>Fail-safe Limit</span><strong>30 seconds max hold time</strong></div>
+                  <div class="sst-row"><span>Power Wiring</span><strong>External 5V supply (Common GND)</strong></div>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
 
-          </div><!-- /col-right -->
+        <!-- ==========================================
+             PAGE 4: HISTORY ANALYTICS VIEW
+        =========================================== -->
+        <div id="page-history" class="view-page">
+          <div class="page-container">
+            <div class="page-header-banner">
+              <div class="phb-text">
+                <h2>Vitals History & Analytics</h2>
+                <p>Time-series multi-parameter trends and dataset CSV export</p>
+              </div>
+              <div class="history-actions">
+                <button id="btn-export-csv" class="btn btn-sm btn-outline">📥 Export CSV</button>
+                <button id="btn-clear-history-page" class="btn btn-sm btn-ghost">Clear Data</button>
+              </div>
+            </div>
 
-        </div><!-- /main-grid -->
+            <div class="history-chart-card">
+              <div class="hcc-header">
+                <span class="hcc-title">Live Time-Series Trends</span>
+                <div class="chart-legend-interactive">
+                  <button class="legend-btn leg-hr active" id="toggle-ds-hr"><span class="cl-dot cl-hr"></span>HR (BPM)</button>
+                  <button class="legend-btn leg-spo2 active" id="toggle-ds-spo2"><span class="cl-dot cl-spo2"></span>SpO₂ (%)</button>
+                  <button class="legend-btn leg-temp active" id="toggle-ds-temp"><span class="cl-dot cl-temp"></span>Temp (°C)</button>
+                </div>
+              </div>
+              <div class="history-chart-wrapper">
+                <canvas id="vitals-chart-full" role="img" aria-label="Full vitals history"></canvas>
+              </div>
+            </div>
+
+            <div class="history-table-card">
+              <div class="htc-header">
+                <span class="htc-title">Telemetry Record Stream</span>
+                <span class="htc-sub" id="history-total-count">0 readings recorded</span>
+              </div>
+              <div class="table-scroll-wrapper">
+                <table class="history-data-table">
+                  <thead>
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>Heart Rate (BPM)</th>
+                      <th>SpO₂ (%)</th>
+                      <th>Temperature (°C)</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="history-table-body">
+                    <tr><td colspan="5" class="table-empty">No telemetry readings recorded yet.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==========================================
+             PAGE 5: LOG VIEW
+        =========================================== -->
+        <div id="page-log" class="view-page">
+          <div class="page-container">
+            <div class="page-header-banner">
+              <div class="phb-text">
+                <h2>Session Audit & Event Log</h2>
+                <p>Live telemetry event stream, FSM state machine transitions & errors</p>
+              </div>
+              <div class="log-actions">
+                <button id="btn-export-log" class="btn btn-sm btn-outline">📋 Export Log</button>
+                <button id="btn-clear-log-page" class="btn btn-sm btn-ghost">Clear Log</button>
+              </div>
+            </div>
+
+            <div class="log-full-card">
+              <div class="lfc-header">
+                <div class="log-search-wrap">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input id="inp-log-search" type="text" placeholder="Filter log entries..." autocomplete="off" />
+                </div>
+                <div class="log-filter-pills">
+                  <button class="log-pill active" data-filter="all">All</button>
+                  <button class="log-pill" data-filter="state">FSM State</button>
+                  <button class="log-pill" data-filter="success">Vitals</button>
+                  <button class="log-pill" data-filter="info">Info</button>
+                  <button class="log-pill" data-filter="error">Errors</button>
+                </div>
+                <span class="lfc-count" id="log-page-count">0 events recorded</span>
+              </div>
+              <div class="log-scroll-full" id="log-page-scroll" role="log">
+                <div class="log-empty" id="log-page-empty">
+                  <span>No system events recorded yet...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
       </main>
 

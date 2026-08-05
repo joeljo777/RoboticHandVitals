@@ -28,6 +28,7 @@
 
 #include "vitals.h"
 #include "config.h"
+#include "adafruit_io_helper.h"
 #include <Wire.h>
 #include <MAX30105.h>
 #include <spo2_algorithm.h>
@@ -87,7 +88,7 @@ bool initVitals() {
 float readSkinTemperature() {
   float rawTemp = _sensor.readTemperature();
   float tempC   = rawTemp + TEMP_OFFSET_DEG_C;
-  DBGF("[VITALS] MAX30102 Temp: Raw=%.1f°C | Calibrated(+3.5°C)=%.1f°C\n", rawTemp, tempC);
+  DBGF("[VITALS] Temperature: %.1f°C\n", tempC);
   return tempC;
 }
 
@@ -168,6 +169,7 @@ VitalsReading collectAndAverageVitals() {
       totalTemp += temp;
       validCount++;
       DBGLN("[VITALS] Sample accepted.");
+      publishLiveVitals((float)hr, (float)spo2, temp);
     } else {
       DBGLN("[VITALS] Sample rejected (low confidence or out-of-range).");
     }
