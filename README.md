@@ -6,7 +6,11 @@
 
 ## 🖼️ Web Application Dashboard Preview
 
-![Robotic Hand Vitals Monitor Dashboard Preview](docs/images/dashboard_preview.png)
+### 🎛️ Overview Dashboard View
+![Robotic Hand Vitals Monitor — Overview Dashboard](docs/images/dashboard_overview.png)
+
+### 🫀 Biometric Vitals Telemetry View
+![Robotic Hand Vitals Monitor — Vitals Telemetry Page](docs/images/dashboard_vitals.png)
 
 The project includes a multi-page web application (`/dashboard`) built with HTML5, CSS3, and JavaScript (Chart.js):
 
