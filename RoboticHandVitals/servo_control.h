@@ -13,4 +13,7 @@ void closeFingers();
 // Ramp fingers from CLOSE angle back to OPEN angle
 void openFingers();
 
+// Set servo directly to a specific target angle (0..180) with soft ramp
+void setServoAngle(int angle);
+
 #endif // SERVO_CONTROL_H

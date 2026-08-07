@@ -79,3 +79,10 @@ void openFingers() {
   DBGLN("[SERVO] Opening fingers...");
   rampTo(SERVO_OPEN_DEG);
 }
+
+void setServoAngle(int angle) {
+  angle = constrain(angle, 0, 180);
+  DBGF("[SERVO] Setting manual angle to %d°...\n", angle);
+  rampTo(angle);
+}
+

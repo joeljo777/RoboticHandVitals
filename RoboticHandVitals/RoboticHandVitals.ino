@@ -24,7 +24,7 @@ static unsigned long stateTimer = 0;
 
 void changeState(State newState, const char* stateName) {
   currentState = newState;
-  stateTimer = millis();
+  stateTimer = millis();  
   DBGF("[FSM] Entering state: %s\n", stateName);
   Serial.printf("{\"type\":\"fsm\",\"state\":\"%s\"}\n", stateName);
 #if ENABLE_WIFI
