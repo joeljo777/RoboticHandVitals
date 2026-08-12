@@ -63,6 +63,75 @@ The project includes a feature-rich web application (`/dashboard`) built with HT
 
 ---
 
+## 🩸 How the Pulse Oximeter Retrieves Data from the Hand
+
+The **MAX30102** sensor uses **Photoplethysmography (PPG)** — a non-invasive optical technique — to measure biometric data from the skin surface. Here is how the process works, step by step:
+
+1. **Sensor Placement Detection**
+   - The MAX30102's IR photodiode continuously monitors ambient IR light levels.
+   - When a hand/finger is placed on the sensor, the IR reflection value jumps above **50,000 counts** (the `OXIMETER_FINGER_THRESHOLD`).
+   - A **debounce timer** (`IR_DEBOUNCE_MS`) ensures the reading is stable before triggering the measurement cycle — preventing false positives from accidental contact.
+
+2. **LED Activation & Light Emission**
+   - Once a hand is confirmed, the sensor activates two on-board LEDs: a **Red LED** (~660 nm) and an **Infrared LED** (~880 nm).
+   - These LEDs are fired **alternately** at 100 samples/second (`sampleRate = 100`) with a pulse width of **411 µs** to maximize signal quality.
+   - LED brightness is set to **60/255** — enough for reliable skin penetration without excessive heat.
+
+3. **Light Absorption & Photodiode Reading**
+   - The LEDs shine light **into the skin tissue** of the hand/finger placed over the sensor window.
+   - Blood absorbs red and IR light at **different ratios** depending on oxygen saturation (oxygenated vs. deoxygenated hemoglobin).
+   - The onboard **photodiode** measures how much light passes through (or reflects back from) the tissue and returns a raw ADC count for each wavelength.
+
+4. **FIFO Buffer Collection**
+   - The ESP32 reads **100 raw samples** (`FIFO_SAMPLES_PER_READ`) from the sensor's internal **FIFO hardware buffer** per measurement round.
+   - The firmware calls `_sensor.check()` in a tight loop to flush hardware FIFO into a software buffer, then pops each sample using `getRed()` / `getIR()` / `nextSample()`.
+   - The FIFO is **cleared before each sample batch** (`clearFIFO()`) to discard stale data from previous cycles.
+
+5. **SpO₂ & Heart Rate Algorithm**
+   - The collected `redBuffer[100]` and `irBuffer[100]` arrays are passed to `maxim_heart_rate_and_oxygen_saturation()` — the official **Maxim Integrated (Analog Devices) signal-processing algorithm** bundled with the SparkFun MAX30105 library.
+   - This algorithm performs **AC/DC component separation** on the PPG waveform to extract the pulsatile signal and identify heartbeat peaks (BPM).
+   - The ratio of **Red AC/DC** to **IR AC/DC** is used to calculate **SpO₂ (%)** using the standard R-curve calibration.
+   - Each result comes with a **validity flag** (`hrValid`, `spo2Valid`) and **confidence score** (0–100).
+
+6. **Temperature Reading**
+   - Immediately after the optical measurement, the MAX30102's built-in **die thermistor** is read via `readTemperature()`.
+   - A **+4.2°C thermal offset** (`TEMP_OFFSET_DEG_C`) is applied to calibrate the raw die temperature to match actual skin surface temperature.
+
+7. **Multi-Sample Averaging & Validation**
+   - The entire FIFO-collect → algorithm → temperature cycle is repeated **`MEASURE_SAMPLES` times** with a delay of `MEASURE_INTERVAL_MS` between each round.
+   - Each reading is **validated** against physiological plausibility ranges: HR between 40–200 BPM and SpO₂ between 70–100%.
+   - Only readings that pass both the library's validity flags **and** the range check are accepted and averaged.
+   - The **final output** is the mean HR (BPM), SpO₂ (%), and Skin Temp (°C) across all valid samples.
+
+8. **Telemetry Transmission**
+   - Valid averaged vitals are packaged into a **JSON payload** and broadcast over two channels simultaneously:
+     - **USB WebSerial** at 115200 baud → received by the Chrome/Edge Web Dashboard in real time.
+     - **Adafruit IO MQTT** (Wi-Fi) → streamed to cloud feeds for remote monitoring and history.
+
+---
+
+## 🌐 How the Project Works — End-to-End Overview
+
+This system is a **biometric-enabled robotic hand** that automatically detects when a user places their hand on it, measures their vital signs, and streams the data to a live web dashboard. Here is the complete flow:
+
+- **Hardware Core**: A 3D-printed robotic hand actuated by SG90/MG90S servo motors through a tendon-cable mechanism. An ESP32 microcontroller is the central brain, connected to the MAX30102 sensor via I2C (GPIO 21/22) and the servo via PWM (GPIO 13).
+
+- **Hand Placement Detection**: The MAX30102 IR photodiode passively monitors for a hand — when a user places their palm/finger over the sensor, the IR reflection crosses the detection threshold and a debounced confirmation triggers the automation cycle.
+
+- **Automatic Finger Closing (FOLD State)**: The servo rotates to 180°, pulling the tendon cables to flex the robotic fingers firmly over the user's hand, pressing it gently against the sensor window for a consistent optical reading.
+
+- **Biometric Measurement (MEASURE State)**: The firmware collects multiple rounds of 100 red + IR PPG samples from the MAX30102 FIFO, runs the Maxim SpO₂/HR algorithm, reads skin temperature, validates each result, and averages the accepted readings.
+
+- **Hold & Transmit (HOLD + PUBLISH States)**: The fingers hold position while the averaged HR, SpO₂, and temperature results are packaged as JSON and sent simultaneously over USB WebSerial and Adafruit IO MQTT (if Wi-Fi is enabled).
+
+- **Auto Release (UNFOLD → COOLDOWN States)**: The servo returns to 0° to release the fingers, followed by a cooldown delay to clear the sensor buffers, before the system returns to IDLE and is ready for the next user.
+
+- **Web Dashboard**: A modern HTML5/CSS3/JS single-page app connects via the Chrome/Edge WebSerial API to display live vital signs cards, FSM state sync, Chart.js time-series graphs, servo kinematics control, session audit log, and CSV/log export — all updating in real time over USB with no server required.
+
+- **Fail-Safe**: A 30-second watchdog timeout (`FAILSAFE_TIMEOUT_MS`) in every non-IDLE state guarantees the fingers will automatically open if any step stalls or fails, protecting both the hardware and the user.
+
+---
+
 ## 🔌 Hardware Architecture & Pin Map
 
 | Component | Part / Spec | Connection | Function |
